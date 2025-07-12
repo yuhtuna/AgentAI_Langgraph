@@ -1,4 +1,4 @@
-from typing import TypedDict, Annotated
+from typing import TypedDict, Annotated, List
 from langchain_core.messages import AnyMessage
 
 
@@ -11,6 +11,7 @@ class AgentState(TypedDict):
     plan: str
     draft: str
     review: str
+    search_results: List[str]  # Add a list to store search results
     # `messages` is a special field that will contain the conversation history.
     # `add_messages` is a helper function that appends messages to this list.
     messages: Annotated[list[AnyMessage], "add_messages"]

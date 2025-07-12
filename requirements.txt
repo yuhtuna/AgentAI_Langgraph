@@ -4,3 +4,5 @@ langchain-core
 langgraph
 python-dotenv
 pytest
+tavily-python
+langchain_community
