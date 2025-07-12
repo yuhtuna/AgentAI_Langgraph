@@ -3,6 +3,7 @@ from ..llm_config import llm
 from ..state import AgentState
 from ..tools import search_tool
 import json
+import pprint
 
 
 def planner_node(state: AgentState):
@@ -46,13 +47,16 @@ def search_node(state: AgentState):
 
 def writer_node(state: AgentState):
     """
-    This node acts as the "Writer". It takes the research draft
+    This node acts as the "Writer". It takes the plan and the search results
     and writes the final report.
     """
     print("---WRITING---")
+    # Combine the plan and search results to provide context to the writer LLM
+    context = f"Task: {state['task']}\n\nPlan:\n{state['plan']}\n\nSearch Results:\n{pprint.pformat(state['search_results'])}"
+    
     messages = [
-        SystemMessage(content="You are an expert technical writer. Take the following research draft and write a polished, final report."),
-        HumanMessage(content=state['draft'])
+        SystemMessage(content="You are an expert technical writer. Based on the following task, plan, and research results, write a polished, final report."),
+        HumanMessage(content=context)
     ]
     response = llm.invoke(messages)
     return {"review": response.content}
