@@ -8,11 +8,13 @@ def should_continue(state: AgentState) -> str:
     """
     Decision node to determine whether to continue searching or end the process.
     """
-    # If there are no search results, end the process.
-    if not state.get("search_results"):
+    # If the search returned an error message (string) or is empty, end.
+    if not state.get("search_results") or isinstance(state["search_results"], str):
+        print("---NO RESULTS OR ERROR, ENDING---")
         return "end"
     # If there are search results, proceed to the writer.
     else:
+        print("---SEARCH SUCCESSFUL, PROCEEDING TO WRITER---")
         return "continue"
 
 

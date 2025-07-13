@@ -1,6 +1,10 @@
 import os
 import pprint
+from dotenv import load_dotenv
 from .graph import create_workflow
+
+# Load environment variables from .env file at the very start
+load_dotenv()
 
 
 def main():

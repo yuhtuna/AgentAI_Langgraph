@@ -27,7 +27,7 @@ def researcher_node(state: AgentState):
     """
     print("---RESEARCHING---")
     messages = [
-        SystemMessage(content="You are a world-class researcher. Based on the following plan, generate a search query to find the most relevant information."),
+        SystemMessage(content="You are a world-class researcher. Based on the following plan, generate a single, concise search query to find the most relevant information. The query should be specific and under 100 characters. Your response must be ONLY the search query string, with no extra text or explanation."),
         HumanMessage(content=state['plan'])
     ]
     response = llm.invoke(messages)
@@ -41,7 +41,7 @@ def search_node(state: AgentState):
     """
     print("---SEARCHING---")
     query = state['messages'][-1].content
-    search_results = search_tool.invoke({"query": query})
+    search_results = search_tool.invoke(query)
     return {"search_results": search_results}
 
 
