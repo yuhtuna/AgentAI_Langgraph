@@ -1,6 +1,6 @@
-# AgentAI LangGraph Project
+# AgentAI LangGraph Project 
 
-This repository contains a LangGraph-based AI agent system with planner, researcher, and writer nodes.
+This repository currently contains a LangGraph-based AI agent system with planner, researcher, and writer nodes.
 
 ## Project Structure
 ```
