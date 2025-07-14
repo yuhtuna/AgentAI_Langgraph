@@ -52,6 +52,7 @@ def researcher_node(state: AgentState):
 def tool_node(state: AgentState):
     """
     This node executes the tool called by the researcher.
+    It appends the results to the messages list.
     """
     print("---EXECUTING TOOL---")
     tool_calls = state['messages'][-1].tool_calls
@@ -67,23 +68,47 @@ def tool_node(state: AgentState):
         else:
             response = f"Error: Unknown tool {tool_name}"
         
+        # Append the response as a ToolMessage
         tool_responses.append(ToolMessage(content=str(response), tool_call_id=call['id']))
     
-    return {"search_results": tool_responses}
+    # Return the responses to be added to the state's messages list
+    return {"messages": tool_responses}
 
 
 def writer_node(state: AgentState):
     """
-    This node acts as the "Writer". It takes the plan and the search results
-    and writes the final report.
+    This node takes the full conversation history and generates the final report.
     """
-    print("---WRITING---")
-    # Combine the plan and search results to provide context to the writer LLM
-    context = f"Task: {state['task']}\n\nPlan:\n{state['plan']}\n\nSearch Results:\n{pprint.pformat(state['search_results'])}"
+    print("---WRITING FINAL REPORT---")
     
-    messages = [
-        SystemMessage(content="You are an expert technical writer. Based on the following task, plan, and research results, write a polished, final report."),
-        HumanMessage(content=context)
+    # Extract text content from the conversation history
+    context_parts = []
+    
+    # Add the original task and plan
+    if 'task' in state:
+        context_parts.append(f"Task: {state['task']}")
+    if 'plan' in state:
+        context_parts.append(f"Plan: {state['plan']}")
+    
+    # Extract content from messages (tool responses)
+    for message in state['messages']:
+        if hasattr(message, 'content') and message.content:
+            # For tool messages, the content is the search results
+            if message.__class__.__name__ == 'ToolMessage':
+                context_parts.append(f"Search Results: {message.content}")
+            elif message.__class__.__name__ == 'HumanMessage':
+                context_parts.append(f"User Input: {message.content}")
+    
+    # Combine all context
+    full_context = "\n\n".join(context_parts)
+    
+    # Create the writer messages with proper text content
+    system_prompt = "You are an expert technical writer. Based on the provided context, write a comprehensive and polished final report. Synthesize all the information provided."
+    
+    writer_messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=full_context)
     ]
-    response = llm.invoke(messages)
+    
+    response = llm.invoke(writer_messages)
     return {"review": response.content}
