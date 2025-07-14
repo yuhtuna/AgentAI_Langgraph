@@ -1,5 +1,5 @@
 # Project Genesis: Low-Code AI Application Platform (LangGraph Edition)
-
+##Important: consider to integrate with narbtech!
 ## 1. Vision & Mission 🎯
 
 **Vision:** To create a premier low-code/no-code platform that allows anyone—from entrepreneurs to enterprise users—to design, build, and deploy custom business logic as a functional application without writing a single line of code.

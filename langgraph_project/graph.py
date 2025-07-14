@@ -1,21 +1,24 @@
 from langgraph.graph import StateGraph, END
 from .state import AgentState
-from .nodes.example_node import planner_node, researcher_node, writer_node, search_node
-from langchain_core.messages import SystemMessage
+from .nodes.example_node import planner_node, researcher_node, writer_node, tool_node
+from langchain_core.messages import BaseMessage
 
 
-def should_continue(state: AgentState) -> str:
+def route_after_researcher(state: AgentState) -> str:
     """
-    Decision node to determine whether to continue searching or end the process.
+    Decision node to determine the next step after the researcher has run.
+    If the researcher decided to call a tool, we execute it.
+    Otherwise, we have a final answer and can proceed to the writer.
     """
-    # If the search returned an error message (string) or is empty, end.
-    if not state.get("search_results") or isinstance(state["search_results"], str):
-        print("---NO RESULTS OR ERROR, ENDING---")
-        return "end"
-    # If there are search results, proceed to the writer.
+    last_message = state['messages'][-1]
+    if last_message.tool_calls:
+        # If the last message was a tool call, execute the tool.
+        print("---DECISION: EXECUTING TOOL---")
+        return "tool"
     else:
-        print("---SEARCH SUCCESSFUL, PROCEEDING TO WRITER---")
-        return "continue"
+        # Otherwise, the LLM has responded with a final answer.
+        print("---DECISION: PROCEEDING TO WRITER---")
+        return "writer"
 
 
 def create_workflow():
@@ -28,7 +31,7 @@ def create_workflow():
     # Add the nodes to the graph
     workflow.add_node("planner", planner_node)
     workflow.add_node("researcher", researcher_node)
-    workflow.add_node("search", search_node)
+    workflow.add_node("tool_executor", tool_node)
     workflow.add_node("writer", writer_node)
 
     # Set the entry point of the graph
@@ -36,18 +39,19 @@ def create_workflow():
 
     # Add edges to define the flow
     workflow.add_edge("planner", "researcher")
-    workflow.add_edge("researcher", "search")
 
-    # Add a conditional edge to decide whether to continue searching or proceed to the writer
+    # This is the new conditional edge after the researcher
     workflow.add_conditional_edges(
-        "search",
-        should_continue,
+        "researcher",
+        route_after_researcher,
         {
-            "continue": "writer",
-            "end": END,
+            "tool": "tool_executor",
+            "writer": "writer",
         },
     )
-
+    
+    # The tool executor always loops back to the researcher to process the results
+    workflow.add_edge("tool_executor", "researcher")
     workflow.add_edge("writer", END)
 
     # Compile the graph into a runnable application

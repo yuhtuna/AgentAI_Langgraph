@@ -6,3 +6,9 @@ python-dotenv
 pytest
 tavily-python
 langchain_community
+# For RAG
+langchain-chroma
+langchain-text-splitters
+langchain-huggingface
+pypdf
+sentence-transformers
