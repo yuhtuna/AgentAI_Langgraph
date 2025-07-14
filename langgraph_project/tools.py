@@ -1,8 +1,9 @@
 import os
 from tavily import TavilyClient
-from langchain_core.tools import Tool
+from langchain_core.tools import Tool, tool
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
+from pydantic import BaseModel, Field
 
 # --- Configuration ---
 VECTORSTORE_DIR = "vectorstore"
@@ -12,23 +13,26 @@ EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 # Initialize the Tavily client directly
 tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
-def tavily_search_func(query: str):
-    """Performs a search using the Tavily client and returns the results."""
+class TavilySearchInput(BaseModel):
+    query: str = Field(description="The search query to find information on the web")
+
+@tool("tavily_search", args_schema=TavilySearchInput)
+def tavily_search_func(query: str) -> str:
+    """Performs a search using Tavily web search for current information and latest developments."""
     try:
         # The .search method returns a dictionary; we're interested in the 'results' key.
         response = tavily_client.search(query=query, search_depth="advanced", max_results=5)
-        return response['results']
+        return str(response['results'])
     except Exception as e:
         return f"An error occurred during search: {e}"
 
-# Create a LangChain Tool from the custom search function
-search_tool = Tool(
-    name="tavily_search",
-    func=tavily_search_func,
-    description="A search engine optimized for comprehensive, accurate, and trusted results. Useful for general web searches, current events, and broad topics.",
-)
+# The tool is now the decorated function itself
+search_tool = tavily_search_func
 
 # --- RAG Knowledge Base Tool ---
+class KnowledgeBaseSearchInput(BaseModel):
+    query: str = Field(description="The search query to find information in the local knowledge base")
+
 def create_rag_tool():
     """Creates a RAG tool for searching the local knowledge base."""
     try:
@@ -37,25 +41,27 @@ def create_rag_tool():
         vectorstore = Chroma(persist_directory=VECTORSTORE_DIR, embedding_function=embeddings)
         retriever = vectorstore.as_retriever()
 
-        # The function that the tool will execute
-        def rag_search_func(query: str):
-            """Performs a search on the local knowledge base."""
-            return retriever.invoke(query)
+        @tool("knowledge_base_search", args_schema=KnowledgeBaseSearchInput)
+        def rag_search_func(query: str) -> str:
+            """Searches the local knowledge base for specific information about AI advancements, ethics, and internal documents."""
+            docs = retriever.invoke(query)
+            if docs:
+                # Combine the content of all retrieved documents
+                combined_content = "\n\n".join([doc.page_content for doc in docs])
+                return combined_content
+            else:
+                return "No relevant information found in the knowledge base."
 
-        # Create the LangChain Tool
-        return Tool(
-            name="knowledge_base_search",
-            func=rag_search_func,
-            description="Searches the local knowledge base for specific information about AI advancements, ethics, and internal documents. Use this for detailed, internal knowledge.",
-        )
+        return rag_search_func
     except Exception as e:
         print(f"Failed to create RAG tool: {e}")
-        # Return a dummy tool that reports the error
-        return Tool(
-            name="knowledge_base_search",
-            func=lambda query: f"Error: RAG tool not available. Could not load vector store. Details: {e}",
-            description="Knowledge base is currently unavailable.",
-        )
+        
+        @tool("knowledge_base_search", args_schema=KnowledgeBaseSearchInput)
+        def error_rag_search(query: str) -> str:
+            """Knowledge base is currently unavailable."""
+            return f"Error: RAG tool not available. Could not load vector store. Details: {e}"
+        
+        return error_rag_search
 
 # --- Initialize Tools ---
 rag_tool = create_rag_tool()
