@@ -13,6 +13,8 @@ class AgentState(TypedDict):
     draft: str
     review: str
     search_results: List[str]  # Add a list to store search results
+    # A counter for the research loop
+    iteration_count: int
     # `messages` is a special field that will contain the conversation history.
     # `add_messages` is a helper function that appends messages to this list.
     messages: Annotated[list[AnyMessage], add_messages]

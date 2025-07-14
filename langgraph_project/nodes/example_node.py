@@ -17,91 +17,57 @@ def planner_node(state: AgentState):
         HumanMessage(content=state['task'])
     ]
     response = llm.invoke(messages)
-    return {"plan": response.content}
+    
+    # Initialize the iteration counter
+    return {"plan": response.content, "iteration_count": 0}
 
 
 def researcher_node(state: AgentState):
     """
-    This node acts as a "Router". It decides which tool to use (web search or RAG)
-    and generates the appropriate query.
+    The "brain" of the research process. This node evaluates the current state
+    and decides the next best action. It can choose to:
+    - Call a tool (for the first time or to refine results).
+    - Conclude the research process if enough information has been gathered.
     """
-    print("---ROUTING: DECIDING WHICH TOOL TO USE---")
-    
-    # Check if we've already used tools (to prevent infinite loops)
-    messages = state.get('messages', [])
-    
-    # Debug: Print all messages for debugging
-    print(f"📋 TOTAL MESSAGES: {len(messages)}")
-    for i, msg in enumerate(messages):
-        msg_type = type(msg).__name__
-        msg_name = getattr(msg, 'name', 'no_name')
-        print(f"  Message {i}: {msg_type} (name: {msg_name})")
-    
-    # Count tool executions by type
-    knowledge_base_used = any(hasattr(msg, 'name') and msg.name == 'knowledge_base_search' for msg in messages)
-    web_search_used = any(hasattr(msg, 'name') and msg.name == 'tavily_search' for msg in messages)
-    
-    tool_execution_count = sum(1 for msg in messages if hasattr(msg, 'name') and 
-                              msg.name in ['tavily_search', 'knowledge_base_search'])
-    
-    print(f"🔄 TOOL EXECUTION COUNT: {tool_execution_count}")
-    print(f"📚 Knowledge base used: {knowledge_base_used}")
-    print(f"🌐 Web search used: {web_search_used}")
-    
-    # Stop if we've used both tools
-    if knowledge_base_used and web_search_used:
-        print("🛑 STOPPING: Both tools used, proceeding to write")
-        response_content = "I have gathered comprehensive information from both local knowledge base and web search. Now I will compile a detailed report."
-        from langchain_core.messages import AIMessage
-        response = AIMessage(content=response_content)
-        return {"messages": [response]}
-    
-    # Enhanced prompt that guides sequential tool usage
-    if not knowledge_base_used:
-        # First, use knowledge base
-        system_prompt = """You are a research assistant. You MUST use the knowledge_base_search tool first to gather local AI information.
+    print("---ROUTING: DECIDING NEXT STEP---")
 
-        Available tools:
-        1. knowledge_base_search - for local AI documents (USE THIS FIRST)
-        2. tavily_search - for current web information
+    # Construct the prompt for the researcher LLM
+    system_prompt = """You are a master researcher. Your goal is to gather comprehensive information to fulfill the user's plan.
 
-        Since this is an AI-related task, start by searching the knowledge base for foundational information.
-        Make a tool call to knowledge_base_search with a relevant query."""
-        
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=f"Plan: {state['plan']}\n\nPlease search the knowledge base for information about AI advancements.")
-        ]
-    elif not web_search_used:
-        # Second, use web search for current information
-        system_prompt = """You are a research assistant. You have already searched the knowledge base. Now use tavily_search to get current web information to complement your research.
+You have two tools available:
+1. `knowledge_base_search`: For internal documentation and established knowledge.
+2. `tavily_search`: For real-time web searches and current events.
 
-        Available tools:
-        1. knowledge_base_search - already used ✓
-        2. tavily_search - for current web information (USE THIS NOW)
+Your research strategy is as follows:
+1. Start with `knowledge_base_search` to see what internal information exists.
+2. Then, use `tavily_search` to get up-to-date information from the web.
+3. **Crucially, you must evaluate the results of each tool call.** If the results are not satisfactory (e.g., not relevant, not enough detail), you can call the **same tool again** with a refined query to get better results.
+4. After you are satisfied with the results from both tools, you can conclude the research.
 
-        Make a tool call to tavily_search to find the latest information and current developments."""
-        
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=f"Plan: {state['plan']}\n\nPlease search the web for the latest AI advancements and current developments in 2025.")
-        ]
-    else:
-        # Both tools used, should not reach here due to earlier check
-        system_prompt = "Both research tools have been used."
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content="Research complete.")
-        ]
+Based on the conversation history and the original plan, decide on the next best action. This could be:
+- Calling a tool (either for the first time or again).
+- Responding with a final summary if you have sufficient information. This will pass the result to the writer.
+"""
+
+    # Prepend the plan to the message history to give the LLM context.
+    plan = state.get('plan', "No plan provided.")
+    plan_message = HumanMessage(content=f"Here is the research plan I need you to execute:\n\n{plan}")
     
+    messages = [SystemMessage(content=system_prompt), plan_message]
+    messages.extend(state.get('messages', []))
+
     # Debug: Print messages being sent to LLM
     print("📤 SENDING TO LLM:")
     for i, msg in enumerate(messages):
-        print(f"  Message {i}: {type(msg).__name__} - {msg.content[:100]}...")
-    
+        # Truncate content for cleaner logging
+        content_preview = msg.content.replace('\n', ' ').strip()
+        if len(content_preview) > 150:
+            content_preview = content_preview[:150] + "..."
+        print(f"  Message {i}: {type(msg).__name__} - {content_preview}")
+
     # Bind the tools to the LLM
     llm_with_tools = llm.bind_tools([search_tool, rag_tool])
-    
+
     try:
         response = llm_with_tools.invoke(messages)
         
@@ -132,8 +98,8 @@ def researcher_node(state: AgentState):
 
 def tool_node(state: AgentState):
     """
-    This node executes the tool called by the researcher.
-    It appends the results to the messages list.
+    This node executes the tool called by the researcher and increments
+    the iteration counter.
     """
     print("---EXECUTING TOOL---")
     tool_calls = state['messages'][-1].tool_calls
@@ -164,8 +130,11 @@ def tool_node(state: AgentState):
             name=tool_name
         ))
     
-    # Return the responses to be added to the state's messages list
-    return {"messages": tool_responses}
+    # Increment the iteration counter
+    new_count = state.get('iteration_count', 0) + 1
+    
+    # Return the responses and the updated count
+    return {"messages": tool_responses, "iteration_count": new_count}
 
 
 def writer_node(state: AgentState):

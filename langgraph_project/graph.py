@@ -24,34 +24,20 @@ def route_after_researcher(state: AgentState) -> str:
 def route_after_tool(state: AgentState) -> str:
     """
     Decision node after tool execution.
-    Check if we need more information or can proceed to writing.
+    Checks if the maximum iteration count has been reached.
+    If so, it proceeds to the writer. Otherwise, it returns to the researcher.
     """
-    # Count how many tool executions we've done by counting ToolMessage instances
-    messages = state.get('messages', [])
+    # Check the iteration count
+    count = state.get('iteration_count', 0)
+    print(f"🔄 Iteration {count} complete.")
     
-    # Debug: Print messages at this routing point
-    print(f"🔄 ROUTE_AFTER_TOOL - MESSAGES: {len(messages)}")
-    for i, msg in enumerate(messages):
-        msg_type = type(msg).__name__
-        msg_name = getattr(msg, 'name', 'no_name')
-        print(f"  Route Message {i}: {msg_type} (name: {msg_name})")
-    
-    # Count tool executions by type
-    knowledge_base_used = any(hasattr(msg, 'name') and msg.name == 'knowledge_base_search' for msg in messages)
-    web_search_used = any(hasattr(msg, 'name') and msg.name == 'tavily_search' for msg in messages)
-    
-    tool_execution_count = sum(1 for msg in messages if hasattr(msg, 'name') and 
-                              msg.name in ['tavily_search', 'knowledge_base_search'])
-    
-    print(f"🔄 ROUTE TOOL COUNT: {tool_execution_count}")
-    print(f"📚 ROUTE KB used: {knowledge_base_used}")  
-    print(f"🌐 ROUTE Web used: {web_search_used}")
-    
-    if knowledge_base_used and web_search_used:
-        print("---DECISION: ENOUGH RESEARCH DONE, PROCEEDING TO WRITER---")
+    if count >= 10:
+        # If we've hit the max, proceed to the writer
+        print("---DECISION: MAX ITERATIONS REACHED, PROCEEDING TO WRITER---")
         return "writer"
     else:
-        print("---DECISION: CONTINUING RESEARCH---")
+        # Otherwise, go back to the researcher for evaluation
+        print("---DECISION: RETURNING TO RESEARCHER FOR EVALUATION---")
         return "researcher"
 
 
@@ -84,7 +70,7 @@ def create_workflow():
         },
     )
     
-    # Add conditional routing after tool execution to prevent infinite loops
+    # Add conditional routing after tool execution to prevent infinite loops.
     workflow.add_conditional_edges(
         "tool_executor",
         route_after_tool,
@@ -93,6 +79,7 @@ def create_workflow():
             "writer": "writer",
         },
     )
+    
     workflow.add_edge("writer", END)
 
     # Compile the graph into a runnable application
