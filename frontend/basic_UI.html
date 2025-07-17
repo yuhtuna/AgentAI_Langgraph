@@ -7,22 +7,26 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
         }
         .glassmorphism {
             background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .node {
             transition: all 0.3s ease;
+            position: relative;
+            z-index: 10;
         }
         .node.running {
             background-color: #3b82f6; /* blue-500 */
-            box-shadow: 0 0 15px #3b82f6;
+            box-shadow: 0 0 20px #3b82f6, 0 0 5px #fff;
+            transform: scale(1.1);
         }
         .node.completed {
             background-color: #22c55e; /* green-500 */
@@ -32,19 +36,18 @@
         }
         .node-connector {
             position: absolute;
-            height: 2px;
             background-color: #4b5563; /* gray-600 */
-            top: 50%;
-            left: 12.5%;
-            width: 75%;
-            transform: translateY(-50%);
-            z-index: -1;
+            z-index: 1;
+            transition: background-color 0.5s ease;
+        }
+        .node-connector.active {
+            background-color: #3b82f6;
         }
         .sidebar-icon.active {
             background-color: #7c3aed;
             color: white;
+            box-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
         }
-        /* Custom radio button card */
         .app-type-card {
             border: 2px solid #4b5563;
             transition: all 0.2s ease-in-out;
@@ -54,7 +57,6 @@
             background-color: rgba(124, 58, 237, 0.2);
             transform: scale(1.05);
         }
-        /* Tooltip styles */
         .tooltip {
             position: relative;
             display: inline-block;
@@ -69,7 +71,7 @@
             border-radius: 6px;
             padding: 8px;
             position: absolute;
-            z-index: 10;
+            z-index: 50;
             bottom: 125%;
             left: 50%;
             margin-left: -110px;
@@ -84,35 +86,62 @@
             opacity: 1;
         }
         .task-item {
-            transition: all 0.3s ease;
+            animation: slide-in 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        @keyframes slide-in {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        #loading-overlay {
+            z-index: 100;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
         }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex h-screen overflow-hidden">
 
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-gray-900/80 flex items-center justify-center">
+        <div class="flex flex-col items-center">
+            <i data-lucide="loader-2" class="animate-spin h-16 w-16 text-purple-400"></i>
+            <p class="mt-4 text-lg">AI is thinking...</p>
+        </div>
+    </div>
+
     <!-- Left Sidebar: Project History -->
     <aside class="w-64 bg-gray-900/50 p-4 flex flex-col border-r border-gray-700 flex-shrink-0">
         <div class="flex items-center mb-6">
-            <img src="https://placehold.co/40x40/7c3aed/ffffff?text=B" alt="Logo" class="rounded-lg mr-3">
-            <h1 class="text-xl font-bold">AI App Builder</h1>
+            <img src="https://placehold.co/40x40/7c3aed/ffffff?text=P" alt="Logo" class="rounded-lg mr-3">
+            <h1 class="text-xl font-bold">AI Platform</h1>
         </div>
         <button id="new-project-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center mb-6 transition-colors">
             <i data-lucide="plus" class="w-4 h-4 mr-2"></i> New Project
         </button>
         <div class="flex-grow overflow-y-auto pr-2">
-            <h2 class="text-sm font-semibold text-gray-400 mb-2">RECENT PROJECTS</h2>
-            <nav class="space-y-2">
-                <a href="#" class="block bg-gray-700/50 p-3 rounded-lg">
-                    <p class="font-semibold">Marketing Strategy App</p>
-                    <p class="text-xs text-gray-400">Last updated: July 10, 2025</p>
-                </a>
-                <a href="#" class="block hover:bg-gray-800 p-3 rounded-lg">
-                    <p class="font-semibold">Inventory Tracker</p>
-                    <p class="text-xs text-gray-400">Last updated: July 8, 2025</p>
-                </a>
+            <h2 class="text-sm font-semibold text-gray-400 mb-2 uppercase tracking-wider">Recent Projects</h2>
+            <nav id="project-list" class="space-y-2">
+                <!-- Projects will be dynamically added here -->
             </nav>
         </div>
-        <button class="text-gray-400 hover:text-white flex items-center mt-4">
+        <button id="clear-projects-btn" class="text-gray-400 hover:text-white flex items-center mt-4">
             <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i> Clear projects
         </button>
     </aside>
@@ -124,47 +153,37 @@
 
     <!-- Right Toolbar -->
     <nav class="w-16 bg-gray-900 flex flex-col items-center py-4 space-y-4 border-l border-gray-700">
-        <button data-panel="chat" class="sidebar-icon p-3 rounded-lg text-gray-400 hover:bg-purple-600 hover:text-white transition-colors">
-            <i data-lucide="message-square" class="w-6 h-6"></i>
-        </button>
-        <button data-panel="workflow" class="sidebar-icon p-3 rounded-lg text-gray-400 hover:bg-purple-600 hover:text-white transition-colors">
-            <i data-lucide="git-merge" class="w-6 h-6"></i>
-        </button>
-        <button data-panel="preview" class="sidebar-icon p-3 rounded-lg text-gray-400 hover:bg-purple-600 hover:text-white transition-colors">
-            <i data-lucide="eye" class="w-6 h-6"></i>
-        </button>
-        <button data-panel="code" class="sidebar-icon p-3 rounded-lg text-gray-400 hover:bg-purple-600 hover:text-white transition-colors">
-            <i data-lucide="code-2" class="w-6 h-6"></i>
-        </button>
-        <button data-panel="usage" class="sidebar-icon p-3 rounded-lg text-gray-400 hover:bg-purple-600 hover:text-white transition-colors">
-            <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
-        </button>
+        <button data-panel="chat" class="sidebar-icon p-3 rounded-lg text-gray-400 hover:bg-purple-600 hover:text-white transition-colors" title="Chat"><i data-lucide="message-square" class="w-6 h-6"></i></button>
+        <button data-panel="workflow" class="sidebar-icon p-3 rounded-lg text-gray-400 hover:bg-purple-600 hover:text-white transition-colors" title="Workflow"><i data-lucide="git-merge" class="w-6 h-6"></i></button>
+        <button data-panel="preview" class="sidebar-icon p-3 rounded-lg text-gray-400 hover:bg-purple-600 hover:text-white transition-colors" title="Preview"><i data-lucide="eye" class="w-6 h-6"></i></button>
+        <button data-panel="code" class="sidebar-icon p-3 rounded-lg text-gray-400 hover:bg-purple-600 hover:text-white transition-colors" title="Code"><i data-lucide="code-2" class="w-6 h-6"></i></button>
+        <button data-panel="cost" class="sidebar-icon p-3 rounded-lg text-gray-400 hover:bg-purple-600 hover:text-white transition-colors" title="Cost"><i data-lucide="dollar-sign" class="w-6 h-6"></i></button>
+        <button data-panel="analysis" class="sidebar-icon p-3 rounded-lg text-gray-400 hover:bg-purple-600 hover:text-white transition-colors" title="Analysis"><i data-lucide="bar-chart-3" class="w-6 h-6"></i></button>
     </nav>
 
     <!-- Panel Templates -->
     <template id="template-new-project">
-        <div class="flex flex-col items-center py-8">
+        <!-- Template for the new project creation screen -->
+        <div class="flex flex-col items-center py-8 animate-fade-in">
             <div class="w-full max-w-4xl text-center">
                 <i data-lucide="rocket" class="w-16 h-16 mx-auto text-purple-400 mb-4"></i>
                 <h2 class="text-3xl font-bold mb-2">Create a New Application</h2>
                 <p class="text-gray-400 mb-6">Describe your application and select the required components. Our AI agents will build it for you.</p>
                 
                 <div class="glassmorphism p-4 rounded-lg mb-6 text-left">
-                    <h3 class="text-lg font-semibold mb-2 ml-2">App Description</h3>
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-lg font-semibold ml-2">App Description</h3>
+                        <button id="generate-with-ai-btn" class="bg-purple-600/50 hover:bg-purple-600 text-white font-semibold py-1 px-3 rounded-lg flex items-center justify-center transition-colors text-sm">
+                            <i data-lucide="sparkles" class="w-4 h-4 mr-2"></i> Generate with AI
+                        </button>
+                    </div>
                     <textarea id="app-description" class="w-full bg-transparent p-2 text-lg focus:outline-none resize-none" rows="4" placeholder="e.g., An app that tracks my daily water intake and reminds me to drink more..."></textarea>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                    <!-- Left Column -->
                     <div class="space-y-6">
                         <div>
-                            <div class="flex items-center mb-3">
-                                <h3 class="text-lg font-semibold text-left">Application Type</h3>
-                                <div class="tooltip ml-2">
-                                    <i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i>
-                                    <span class="tooltip-text">Select the primary goal of your application. This helps the AI choose the right architecture.</span>
-                                </div>
-                            </div>
+                            <div class="flex items-center mb-3"><h3 class="text-lg font-semibold text-left">Application Type</h3><div class="tooltip ml-2"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i><span class="tooltip-text">Select the primary goal of your application. This helps the AI choose the right architecture.</span></div></div>
                             <div class="grid grid-cols-2 gap-4">
                                 <label><input type="radio" name="app-type" value="web-app" class="hidden" checked><div class="app-type-card p-4 rounded-lg cursor-pointer text-center h-full flex flex-col justify-center"><i data-lucide="layout-template" class="w-8 h-8 mx-auto mb-2"></i><span class="font-semibold text-sm">Web App</span></div></label>
                                 <label><input type="radio" name="app-type" value="api-service" class="hidden"><div class="app-type-card p-4 rounded-lg cursor-pointer text-center h-full flex flex-col justify-center"><i data-lucide="server" class="w-8 h-8 mx-auto mb-2"></i><span class="font-semibold text-sm">API Service</span></div></label>
@@ -173,49 +192,36 @@
                             </div>
                         </div>
                         <div>
-                            <div class="flex items-center mb-2">
-                                <h3 class="text-lg font-semibold text-left">AI Configuration</h3>
-                                <div class="tooltip ml-2"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i><span class="tooltip-text">Choose the number of AI agents working on your project in parallel. More workers can build faster but may increase costs.</span></div>
-                            </div>
+                            <div class="flex items-center mb-2"><h3 class="text-lg font-semibold text-left">AI Configuration</h3><div class="tooltip ml-2"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i><span class="tooltip-text">Choose the number of AI agents working on your project in parallel. More workers can build faster but may increase costs.</span></div></div>
                              <label for="worker-slider" class="flex justify-between items-center text-gray-300"><span>AI Worker Agents</span><span id="worker-count" class="font-bold text-purple-400">3</span></label>
                             <input id="worker-slider" type="range" min="1" max="10" value="3" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer mt-2">
                         </div>
                     </div>
-                    <!-- Right Column -->
                     <div>
                         <div class="flex items-center mb-3"><h3 class="text-lg font-semibold text-left">Core Features & Integrations</h3></div>
                         <div class="space-y-3">
                             <label class="flex items-center text-lg text-gray-300 cursor-pointer p-3 rounded-lg hover:bg-gray-800"><input type="checkbox" id="use-db" class="form-checkbox h-5 w-5 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"><span class="ml-4">Use a Database</span><div class="tooltip ml-auto"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i><span class="tooltip-text">Check this to give your application a persistent memory using a PostgreSQL database.</span></div></label>
-                            <label class="flex items-center text-lg text-gray-300 cursor-pointer p-3 rounded-lg hover:bg-gray-800"><input type="checkbox" id="use-apis" class="form-checkbox h-5 w-5 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"><span class="ml-4">Use External APIs</span><div class="tooltip ml-auto"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i><span class="tooltip-text">Allows your application to connect to third-party services like social media, payment gateways, etc.</span></div></label>
-                             <label class="flex items-center text-lg text-gray-300 cursor-pointer p-3 rounded-lg hover:bg-gray-800"><input type="checkbox" id="user-auth" class="form-checkbox h-5 w-5 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"><span class="ml-4">Add User Authentication</span><div class="tooltip ml-auto"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i><span class="tooltip-text">Enables user sign-up, login, and profile management for your application.</span></div></label>
-                            <label class="flex items-center text-lg text-gray-300 cursor-pointer p-3 rounded-lg hover:bg-gray-800 bg-blue-500/10 border border-blue-500/30"><input type="checkbox" id="intensive-testing" class="form-checkbox h-5 w-5 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"><span class="ml-4">Intensive Testing</span><div class="tooltip ml-auto"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i><span class="tooltip-text">Each AI worker's output is individually verified. This increases reliability but costs more.</span></div></label>
+                            <label class="flex items-center text-lg text-gray-300 cursor-pointer p-3 rounded-lg hover:bg-gray-800"><input type="checkbox" id="user-auth" class="form-checkbox h-5 w-5 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"><span class="ml-4">Add User Authentication</span><div class="tooltip ml-auto"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i><span class="tooltip-text">Enables user sign-up, login, and profile management for your application.</span></div></label>
+                            <label class="flex items-center text-lg text-gray-300 cursor-pointer p-3 rounded-lg hover:bg-gray-800 bg-blue-500/10 border border-blue-500/30"><input type="checkbox" id="intensive-testing" class="form-checkbox h-5 w-5 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"><span class="ml-4">Intensive Testing Mode</span><div class="tooltip ml-auto"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i><span class="tooltip-text">Each AI worker's output is individually verified. This increases reliability but costs more.</span></div></label>
                         </div>
                     </div>
                 </div>
-
-                <!-- Knowledge Base Upload -->
                 <div class="mt-6 text-left">
-                    <div class="flex items-center mb-3">
-                        <h3 class="text-lg font-semibold">Knowledge Base</h3>
-                        <div class="tooltip ml-2"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i><span class="tooltip-text">Upload documents, code, or images as context for the AI agents.</span></div>
-                    </div>
+                    <div class="flex items-center mb-3"><h3 class="text-lg font-semibold">Knowledge Base</h3><div class="tooltip ml-2"><i data-lucide="help-circle" class="w-4 h-4 text-gray-400"></i><span class="tooltip-text">Upload documents, code, or images as context for the AI agents.</span></div></div>
                     <div id="dropzone" class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-purple-500 hover:bg-gray-800/50">
                         <i data-lucide="upload-cloud" class="w-10 h-10 mx-auto text-gray-500 mb-2"></i>
-                        <p class="text-gray-400">Drag & drop files here or</p>
-                        <button id="upload-btn" type="button" class="mt-2 text-purple-400 font-semibold">Browse files</button>
+                        <p class="text-gray-400">Drag & drop files here or <button id="upload-btn" type="button" class="text-purple-400 font-semibold hover:underline">Browse files</button></p>
                         <input type="file" id="file-input" class="hidden" multiple>
                     </div>
                     <div id="file-list" class="mt-3 space-y-2"></div>
                 </div>
-
-                <button id="start-building-btn" class="mt-8 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform hover:scale-105">
-                    Start Building
-                </button>
+                <button id="start-building-btn" class="mt-8 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform hover:scale-105">Start Building</button>
             </div>
         </div>
     </template>
 
     <template id="template-chat">
+        <!-- Template for the chat interface -->
         <div class="flex-1 flex flex-col h-full">
             <div id="chat-history" class="flex-1 space-y-6 overflow-y-auto pr-2"></div>
             <div class="mt-4 pt-4 border-t border-gray-700">
@@ -228,83 +234,49 @@
     </template>
 
     <template id="template-workflow">
-        <div class="glassmorphism p-6 rounded-lg flex-1 flex flex-col">
-            <h3 class="text-lg font-semibold mb-4 text-center">AI AGENT WORKFLOW</h3>
-            <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="flex flex-col items-center justify-center">
-                     <div id="workflow-visualization" class="relative flex items-center justify-between w-full max-w-sm mx-auto h-24">
-                        <div id="node-manager" class="node z-10 w-20 h-20 rounded-full flex flex-col items-center justify-center bg-gray-700"><i data-lucide="user-cog" class="w-6 h-6 mb-1"></i><span class="text-xs">Manager</span></div>
-                        <div id="node-retriever" class="node z-10 w-20 h-20 rounded-full flex flex-col items-center justify-center bg-gray-700"><i data-lucide="database" class="w-6 h-6 mb-1"></i><span class="text-xs">Retriever</span></div>
-                        <div id="node-worker" class="node z-10 w-20 h-20 rounded-full flex flex-col items-center justify-center bg-gray-700"><i data-lucide="bot" class="w-6 h-6 mb-1"></i><span class="text-xs">Worker</span></div>
-                        <div id="node-tester" class="node z-10 w-20 h-20 rounded-full flex flex-col items-center justify-center bg-gray-700"><i data-lucide="shield-check" class="w-6 h-6 mb-1"></i><span class="text-xs">Tester</span></div>
-                        <div class="node-connector"></div>
-                    </div>
+        <!-- Template for the workflow visualization -->
+        <div class="glassmorphism p-6 rounded-lg flex-1 flex flex-col h-full">
+            <h3 class="text-lg font-semibold mb-4 text-center uppercase tracking-wider">AI Agent Workflow</h3>
+            <div class="flex flex-col space-y-6 flex-1 min-h-0">
+                <div id="workflow-visualization" class="relative w-full h-24 flex-shrink-0">
+                    <!-- Nodes and connectors will be drawn here by JS -->
                 </div>
-                <div class="flex flex-col">
+                <div class="flex flex-col flex-1 min-h-0">
                     <h4 class="font-semibold mb-3 text-center lg:text-left">Task Plan</h4>
-                    <div id="task-plan-list" class="space-y-2 overflow-y-auto pr-2 bg-gray-900/50 p-3 rounded-lg h-64"></div>
+                    <div class="bg-gray-900/50 p-3 rounded-lg flex flex-col flex-1 min-h-0 relative">
+                        <div class="grid grid-cols-[auto,1fr,auto] gap-x-4 text-sm font-semibold text-gray-400 px-3 py-2 border-b border-gray-700 flex-shrink-0">
+                            <span>Status</span>
+                            <span>Task</span>
+                            <span>Agent</span>
+                        </div>
+                        <div id="task-plan-container" class="overflow-y-auto flex-1">
+                            <div id="task-plan-list" class="space-y-1 mt-2">
+                               <!-- Task items will be injected here -->
+                            </div>
+                        </div>
+                        <button id="scroll-to-bottom-btn" class="hidden absolute bottom-4 right-4 bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 transition-opacity duration-300">
+                            <i data-lucide="chevrons-down" class="w-5 h-5"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="mt-4 pt-4 border-t border-gray-700 text-center">
-                <p class="text-gray-400 text-lg bg-gray-800 px-6 py-3 rounded-lg inline-block">STATUS: <span id="current-stage">Idle</span></p>
+                <p class="text-gray-400 text-lg bg-gray-800 px-6 py-3 rounded-lg inline-block">STATUS: <span id="current-stage" class="font-bold text-purple-300">Idle</span></p>
                 <button id="deploy-btn" class="hidden mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform hover:scale-105"><i data-lucide="upload-cloud" class="inline-block -mt-1 mr-2 w-5 h-5"></i>Deploy Application</button>
             </div>
         </div>
     </template>
 
     <template id="template-preview">
+        <!-- Template for the live preview -->
         <div class="glassmorphism rounded-lg flex flex-col h-full">
             <div class="p-4 border-b border-gray-700 flex items-center"><i data-lucide="eye" class="w-5 h-5 mr-2"></i><h3 class="font-semibold">Live Preview</h3></div>
-            <div id="preview-content" class="flex-1 p-4 bg-white/95 rounded-b-lg text-gray-800">
-                <!-- Content changes based on app type -->
-            </div>
+            <div id="preview-content" class="flex-1 p-4 bg-white/95 rounded-b-lg text-gray-800"></div>
         </div>
     </template>
     
-    <template id="preview-webapp">
-        <div class="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg"><h2 class="text-xl font-bold mb-2">Marketing Strategy App</h2><p class="text-gray-500 mb-4">Your generated application preview will appear here.</p><button class="bg-purple-600 text-white py-2 px-4 rounded-lg">Get Started</button></div>
-    </template>
-
-    <template id="preview-api">
-        <div class="font-mono text-sm h-full overflow-y-auto p-4 bg-gray-800 text-white rounded-lg">
-            <h2 class="text-2xl font-bold mb-4 text-green-400">My API Service - Swagger UI</h2>
-            <div class="space-y-4">
-                <div class="bg-green-900/50 rounded"><div class="p-2 font-bold cursor-pointer"><span class="bg-green-500 text-white px-2 py-1 rounded-md text-xs mr-2">GET</span> /api/v1/users</div></div>
-                <div class="bg-blue-900/50 rounded"><div class="p-2 font-bold cursor-pointer"><span class="bg-blue-500 text-white px-2 py-1 rounded-md text-xs mr-2">POST</span> /api/v1/users</div></div>
-            </div>
-            <p class="text-gray-400 mt-6 text-xs">* This is a mock-up of the Swagger/OpenAPI documentation that will be generated for your API.</p>
-        </div>
-    </template>
-
-    <template id="preview-ios">
-        <div class="w-full h-full flex flex-col items-center justify-center bg-gray-200 rounded-lg p-4">
-            <div class="w-full max-w-xs bg-white rounded-3xl shadow-lg p-2">
-                <div class="bg-black text-white rounded-t-2xl px-4 py-2 text-center font-bold">My iOS App</div>
-                <div class="p-4 space-y-4">
-                    <h3 class="text-lg font-semibold text-gray-800">Welcome!</h3>
-                    <button class="w-full bg-blue-500 text-white py-2 rounded-lg">Log In</button>
-                    <button class="w-full bg-gray-200 text-gray-700 py-2 rounded-lg">Sign Up</button>
-                </div>
-            </div>
-        </div>
-    </template>
-
-     <template id="preview-android">
-        <div class="w-full h-full flex flex-col items-center justify-center bg-gray-200 rounded-lg p-4">
-            <div class="w-full max-w-xs bg-white rounded-2xl shadow-lg">
-                <div class="bg-teal-600 text-white p-4 rounded-t-2xl">
-                    <h2 class="text-xl font-bold">My Android App</h2>
-                </div>
-                <div class="p-4 space-y-4">
-                     <h3 class="text-lg font-semibold text-gray-800">Welcome!</h3>
-                     <button class="w-full bg-purple-600 text-white py-2 rounded-md uppercase font-semibold shadow-md">Log In</button>
-                     <button class="w-full border-2 border-purple-600 text-purple-600 py-2 rounded-md uppercase font-semibold">Sign Up</button>
-                </div>
-            </div>
-        </div>
-    </template>
-
     <template id="template-code">
+        <!-- Template for the generated code view -->
         <div class="glassmorphism rounded-lg flex flex-col h-full">
             <div class="p-4 border-b border-gray-700 flex items-center"><i data-lucide="code-2" class="w-5 h-5 mr-2"></i><h3 class="font-semibold">Generated Code</h3></div>
             <div class="flex-1 p-4 bg-gray-900/50 rounded-b-lg font-mono text-sm overflow-y-auto"><pre><code id="generated-code" class="language-python"># Generated Python code will appear here.
@@ -321,21 +293,131 @@ def read_root():
         </div>
     </template>
 
-    <template id="template-usage">
-        <div class="glassmorphism rounded-lg flex flex-col h-full p-6 space-y-6">
-            <div class="flex items-center"><i data-lucide="bar-chart-3" class="w-5 h-5 mr-2"></i><h3 class="font-semibold text-lg">Usage & Cost Analysis</h3></div>
+    <template id="template-cost">
+        <!-- Template for the Cost Analysis panel -->
+        <div class="glassmorphism rounded-lg flex flex-col h-full p-6 space-y-6 overflow-y-auto">
+            <div class="flex items-center"><i data-lucide="dollar-sign" class="w-5 h-5 mr-2"></i><h3 class="font-semibold text-lg">Cost & Usage</h3></div>
             <div>
-                <h4 class="text-md font-semibold mb-2 text-gray-300">Current Project Cost</h4>
+                <h4 class="text-md font-semibold mb-2 text-gray-300">Current Project Build Cost</h4>
                 <div class="w-full bg-gray-700 rounded-full h-2.5"><div id="cost-progress" class="bg-blue-500 h-2.5 rounded-full" style="width: 45%"></div></div>
                 <div class="flex justify-between text-sm mt-1"><span id="current-cost-label">$0.45</span><span class="text-gray-400">Est. Total: $1.00</span></div>
             </div>
             <div class="border-t border-gray-700 pt-6">
                  <h4 class="text-md font-semibold mb-3 text-gray-300">Estimated Monthly Maintenance</h4>
                  <div class="space-y-3">
-                    <div class="flex justify-between items-center"><span class="text-gray-400">OpenAI API (GPT-4)</span><span class="font-semibold">$20.00 / month</span></div>
-                    <div class="flex justify-between items-center"><span class="text-gray-400">Tavily Search API</span><span class="font-semibold">$10.00 / month</span></div>
-                     <div class="flex justify-between items-center border-t border-gray-700 pt-3 mt-3"><span class="text-gray-300 text-lg">Total</span><span class="font-bold text-xl text-green-400">$30.00 / month</span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-400">Cloud Hosting (GCP)</span><span class="font-semibold">$15.00 / month</span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-400">Database (PostgreSQL)</span><span class="font-semibold">$5.00 / month</span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-400">LLM API (Gemini)</span><span class="font-semibold">Usage-based</span></div>
+                     <div class="flex justify-between items-center border-t border-gray-700 pt-3 mt-3"><span class="text-gray-300 text-lg">Total Estimate</span><span class="font-bold text-xl text-green-400">$20.00+ / month</span></div>
                  </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="template-analysis">
+        <!-- Template for the Deep Service Analysis dashboard -->
+        <div class="glassmorphism rounded-lg flex flex-col h-full p-6 space-y-6 overflow-y-auto">
+            <div class="flex items-center justify-between"><h3 class="font-semibold text-lg flex items-center"><i data-lucide="bar-chart-3" class="w-5 h-5 mr-2"></i>Deep Service Analysis</h3>
+            <button id="generate-insights-btn" class="bg-purple-600/50 hover:bg-purple-600 text-white font-semibold py-1 px-3 rounded-lg flex items-center justify-center transition-colors text-sm">
+                <i data-lucide="sparkles" class="w-4 h-4 mr-2"></i> Generate AI Insights
+            </button>
+            </div>
+            
+            <!-- Business Analytics Section -->
+            <div class="bg-gray-800/30 p-4 rounded-lg">
+                <h4 class="font-semibold mb-3 text-purple-300">Business Analytics</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-gray-800/50 p-4 rounded-lg"><p class="text-sm text-gray-400">Total Visits</p><p id="kpi-visits" class="text-2xl font-bold">1,428</p></div>
+                    <div class="bg-gray-800/50 p-4 rounded-lg"><p class="text-sm text-gray-400">Unique Users</p><p id="kpi-users" class="text-2xl font-bold">971</p></div>
+                    <div class="bg-gray-800/50 p-4 rounded-lg"><p class="text-sm text-gray-400">Conversion Rate</p><p id="kpi-conversion" class="text-2xl font-bold">12.3%</p></div>
+                    <div class="bg-gray-800/50 p-4 rounded-lg"><p class="text-sm text-gray-400">Revenue</p><p id="kpi-revenue" class="text-2xl font-bold">$452.10</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-gray-800/50 p-4 rounded-lg">
+                        <h4 class="font-semibold mb-2">User Engagement Trends</h4>
+                        <div class="relative h-64">
+                            <canvas id="engagement-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-gray-800/50 p-4 rounded-lg">
+                        <h4 class="font-semibold mb-2">AI Business Insights</h4>
+                        <ul id="ai-insights-list" class="space-y-3 text-gray-300">
+                            <!-- AI insights will be populated here -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Server Health Section -->
+            <div class="bg-gray-800/30 p-4 rounded-lg">
+                <h4 class="font-semibold mb-3 text-teal-300">Server Health & Operations</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-gray-800/50 p-4 rounded-lg flex items-center gap-4"><i data-lucide="server" class="w-8 h-8 text-green-400"></i><div><p class="text-sm text-gray-400">Server Status</p><p class="text-xl font-bold">Online</p></div></div>
+                    <div class="bg-gray-800/50 p-4 rounded-lg"><p class="text-sm text-gray-400">Uptime (30d)</p><p id="kpi-uptime" class="text-2xl font-bold">99.98%</p></div>
+                    <div class="bg-gray-800/50 p-4 rounded-lg"><p class="text-sm text-gray-400">API Success Rate</p><p id="kpi-success-rate" class="text-2xl font-bold">98.7%</p></div>
+                    <div class="bg-gray-800/50 p-4 rounded-lg"><p class="text-sm text-gray-400">Avg. Response</p><p id="kpi-response-time" class="text-2xl font-bold">112ms</p></div>
+                </div>
+                <div>
+                     <h4 class="font-semibold mb-2">Recent Server Events</h4>
+                     <div id="server-logs" class="font-mono text-xs text-gray-400 bg-gray-900/50 p-3 rounded-lg h-32 overflow-y-auto">
+                        <p><span class="text-green-400">[INFO]</span> Deployment successful - v1.1.0</p>
+                        <p><span class="text-blue-400">[DEBUG]</span> User 'user_123' logged in.</p>
+                        <p><span class="text-yellow-400">[WARN]</span> Database connection latency high: 350ms</p>
+                        <p><span class="text-red-400">[ERROR]</span> API endpoint /v1/data failed: 500 Internal Server Error</p>
+                     </div>
+                </div>
+            </div>
+
+        </div>
+    </template>
+
+    <!-- Other templates for previews -->
+    <template id="preview-webapp">
+        <div class="w-full h-full bg-gray-100 rounded-md flex flex-col">
+            <header class="bg-white shadow-sm p-4 flex justify-between items-center border-b">
+                <div class="flex items-center">
+                    <i data-lucide="layout-dashboard" class="text-purple-600"></i>
+                    <h1 class="text-xl font-bold text-gray-800 ml-2">My App Dashboard</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-600">Welcome, User!</span>
+                    <img src="https://placehold.co/32x32/1f2937/ffffff?text=U" class="rounded-full">
+                </div>
+            </header>
+            <main class="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-4 rounded-lg shadow"><h3 class="font-semibold text-gray-700">Users</h3><p class="text-3xl font-bold text-gray-900">1,250</p></div>
+                <div class="bg-white p-4 rounded-lg shadow"><h3 class="font-semibold text-gray-700">Sales</h3><p class="text-3xl font-bold text-gray-900">$12,450</p></div>
+                <div class="bg-white p-4 rounded-lg shadow"><h3 class="font-semibold text-gray-700">Conversion</h3><p class="text-3xl font-bold text-gray-900">15.3%</p></div>
+                <div class="md:col-span-2 lg:col-span-3 bg-white p-4 rounded-lg shadow"><h3 class="font-semibold text-gray-700 mb-2">Sales Over Time</h3><div class="h-48 bg-gray-200 rounded"></div></div>
+            </main>
+        </div>
+    </template>
+    <template id="preview-api">
+        <div class="font-mono text-sm h-full overflow-y-auto p-4 bg-gray-800 text-white rounded-lg"><h2 class="text-2xl font-bold mb-4 text-green-400">My API Service - Swagger UI</h2><div class="space-y-4"><div class="bg-green-900/50 rounded"><div class="p-2 font-bold cursor-pointer"><span class="bg-green-500 text-white px-2 py-1 rounded-md text-xs mr-2">GET</span> /api/v1/users</div></div><div class="bg-blue-900/50 rounded"><div class="p-2 font-bold cursor-pointer"><span class="bg-blue-500 text-white px-2 py-1 rounded-md text-xs mr-2">POST</span> /api/v1/users</div></div></div><p class="text-gray-400 mt-6 text-xs">* This is a mock-up of the Swagger/OpenAPI documentation that will be generated for your API.</p></div>
+    </template>
+    <template id="preview-ios">
+        <div class="w-full h-full flex flex-col items-center justify-center bg-gray-200 rounded-lg p-4">
+            <div class="w-full max-w-xs bg-white rounded-3xl shadow-lg p-2">
+                <div class="bg-black text-white rounded-t-2xl px-4 py-2 text-center font-bold">My iOS App</div>
+                <div class="p-4 space-y-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Welcome!</h3>
+                    <button class="w-full bg-blue-500 text-white py-2 rounded-lg">Log In</button>
+                    <button class="w-full bg-gray-200 text-gray-700 py-2 rounded-lg">Sign Up</button>
+                </div>
+            </div>
+        </div>
+    </template>
+     <template id="preview-android">
+        <div class="w-full h-full flex flex-col items-center justify-center bg-gray-200 rounded-lg p-4">
+            <div class="w-full max-w-xs bg-white rounded-2xl shadow-lg">
+                <div class="bg-teal-600 text-white p-4 rounded-t-2xl">
+                    <h2 class="text-xl font-bold">My Android App</h2>
+                </div>
+                <div class="p-4 space-y-4">
+                     <h3 class="text-lg font-semibold text-gray-800">Welcome!</h3>
+                     <button class="w-full bg-purple-600 text-white py-2 rounded-md uppercase font-semibold shadow-md">Log In</button>
+                     <button class="w-full border-2 border-purple-600 text-purple-600 py-2 rounded-md uppercase font-semibold">Sign Up</button>
+                </div>
             </div>
         </div>
     </template>
@@ -347,30 +429,99 @@ def read_root():
         const mainWorkspace = document.getElementById('main-workspace');
         const sidebarIcons = document.querySelectorAll('.sidebar-icon');
         const newProjectBtn = document.getElementById('new-project-btn');
-        
+        const projectListEl = document.getElementById('project-list');
+        const clearProjectsBtn = document.getElementById('clear-projects-btn');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
         const templates = {
             newProject: document.getElementById('template-new-project').innerHTML,
             chat: document.getElementById('template-chat').innerHTML,
             workflow: document.getElementById('template-workflow').innerHTML,
             preview: document.getElementById('template-preview').innerHTML,
             code: document.getElementById('template-code').innerHTML,
-            usage: document.getElementById('template-usage').innerHTML,
+            cost: document.getElementById('template-cost').innerHTML,
+            analysis: document.getElementById('template-analysis').innerHTML,
         };
 
-        const projectState = {
-            description: '',
-            appType: '',
-            useDb: false,
-            useApis: false,
-            userAuth: false,
-            intensiveTesting: false,
-            workerCount: 3,
-            isComplete: false,
-            uploadedFiles: [],
-            chatHistory: [],
-        };
+        let projects = {};
+        let activeProjectId = null;
 
+        function getActiveProject() {
+            return projects[activeProjectId];
+        }
+
+        function saveProjects() {
+            localStorage.setItem('ai_builder_projects', JSON.stringify(projects));
+        }
+
+        function loadProjects() {
+            const saved = localStorage.getItem('ai_builder_projects');
+            projects = saved ? JSON.parse(saved) : {};
+            renderProjectList();
+        }
+
+        function renderProjectList() {
+            projectListEl.innerHTML = '';
+            Object.values(projects).sort((a, b) => b.lastUpdated - a.lastUpdated).forEach(proj => {
+                const link = document.createElement('a');
+                link.href = '#';
+                link.className = `block p-3 rounded-lg transition-colors ${proj.id === activeProjectId ? 'bg-gray-700/50' : 'hover:bg-gray-800'}`;
+                link.dataset.id = proj.id;
+                link.innerHTML = `<p class="font-semibold truncate">${proj.description || 'New Project'}</p><p class="text-xs text-gray-400">Last updated: ${new Date(proj.lastUpdated).toLocaleDateString()}</p>`;
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    setActiveProject(proj.id);
+                });
+                projectListEl.appendChild(link);
+            });
+        }
+
+        function createNewProject() {
+            const id = `proj_${Date.now()}`;
+            projects[id] = {
+                id: id,
+                description: '',
+                appType: 'web-app',
+                useDb: false,
+                userAuth: false,
+                intensiveTesting: false,
+                workerCount: 3,
+                isBuilding: false,
+                isComplete: false,
+                uploadedFiles: [],
+                chatHistory: [],
+                taskPlan: [],
+                lastUpdated: Date.now()
+            };
+            setActiveProject(id);
+        }
+
+        function setActiveProject(id) {
+            activeProjectId = id;
+            saveProjects();
+            renderProjectList();
+            const project = getActiveProject();
+            if (!project.description) { // Project is new and not started
+                switchPanel('newProject');
+                lockUI();
+            } else if (project.isBuilding || project.isComplete) {
+                switchPanel('workflow');
+                unlockUI();
+            } else {
+                switchPanel('newProject');
+                unlockUI();
+            }
+        }
+        
         function switchPanel(panelName) {
+            const project = getActiveProject();
+            if (!project && panelName !== 'newProject') {
+                return; // Should not happen if UI is locked
+            }
+            if (project && !project.description && panelName !== 'newProject') {
+                return; // Lock to new project screen
+            }
+
             mainWorkspace.innerHTML = templates[panelName];
             lucide.createIcons();
             
@@ -379,82 +530,97 @@ def read_root():
             });
             
             addPanelEventListeners(panelName);
+            updateUIForState();
+        }
 
-            if (panelName === 'workflow' && projectState.isComplete) {
-                showCompletedWorkflow();
-            }
-            if (panelName === 'preview') {
+        function lockUI() {
+            sidebarIcons.forEach(icon => {
+                icon.disabled = true;
+                icon.classList.add('opacity-50', 'cursor-not-allowed');
+            });
+        }
+
+        function unlockUI() {
+             sidebarIcons.forEach(icon => {
+                icon.disabled = false;
+                icon.classList.remove('opacity-50', 'cursor-not-allowed');
+            });
+        }
+
+        function updateUIForState() {
+            const project = getActiveProject();
+            if (!project) return;
+
+            const currentPanel = document.querySelector('.sidebar-icon.active')?.dataset.panel;
+
+            if (currentPanel === 'newProject') {
+                document.getElementById('app-description').value = project.description;
+                document.querySelector(`input[name="app-type"][value="${project.appType}"]`).checked = true;
+                document.getElementById('use-db').checked = project.useDb;
+                document.getElementById('user-auth').checked = project.userAuth;
+                document.getElementById('intensive-testing').checked = project.intensiveTesting;
+                document.getElementById('worker-slider').value = project.workerCount;
+                document.getElementById('worker-count').textContent = project.workerCount;
+                renderFileList();
+            } else if (currentPanel === 'chat') {
+                renderChatHistory();
+            } else if (currentPanel === 'workflow') {
+                if (project.isBuilding) {
+                    runWorkflow();
+                } else if (project.isComplete) {
+                    showCompletedWorkflow();
+                }
+            } else if (currentPanel === 'preview') {
                 renderPreview();
+            } else if (currentPanel === 'analysis') {
+                renderAnalysisChart();
             }
         }
         
-        function renderPreview() {
-            const previewContent = document.getElementById('preview-content');
-            if (!previewContent) return;
-            
-            const previewTemplates = {
-                'web-app': document.getElementById('preview-webapp').innerHTML,
-                'api-service': document.getElementById('preview-api').innerHTML,
-                'ios-app': document.getElementById('preview-ios').innerHTML,
-                'android-app': document.getElementById('preview-android').innerHTML,
-            };
-
-            previewContent.innerHTML = previewTemplates[projectState.appType] || previewTemplates['web-app'];
-            lucide.createIcons();
-        }
-
         function addPanelEventListeners(panelName) {
             if (panelName === 'newProject') {
                 document.getElementById('start-building-btn').addEventListener('click', startProject);
+                document.getElementById('generate-with-ai-btn').addEventListener('click', generateWithAI);
                 const slider = document.getElementById('worker-slider');
-                const count = document.getElementById('worker-count');
-                slider.addEventListener('input', () => { count.textContent = slider.value; });
-                
-                // File upload listeners
+                slider.addEventListener('input', () => { document.getElementById('worker-count').textContent = slider.value; });
                 const dropzone = document.getElementById('dropzone');
                 const fileInput = document.getElementById('file-input');
-                const uploadBtn = document.getElementById('upload-btn');
-
-                uploadBtn.addEventListener('click', () => fileInput.click());
                 dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-purple-500'); });
                 dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-purple-500'));
-                dropzone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    dropzone.classList.remove('border-purple-500');
-                    handleFiles(e.dataTransfer.files);
-                });
+                dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('border-purple-500'); handleFiles(e.dataTransfer.files); });
+                document.getElementById('upload-btn').addEventListener('click', () => fileInput.click());
                 fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-
             } else if (panelName === 'chat') {
                 document.getElementById('send-button')?.addEventListener('click', handleChatMessage);
-                const userPrompt = document.getElementById('user-prompt');
-                if(userPrompt) {
-                    userPrompt.addEventListener('input', () => {
-                        userPrompt.style.height = 'auto';
-                        userPrompt.style.height = (userPrompt.scrollHeight) + 'px';
-                    });
-                }
-                renderChatHistory();
-            } else if (panelName === 'workflow') {
-                document.getElementById('deploy-btn')?.addEventListener('click', () => alert('Deployment process initiated! (This is a simulation)'));
+            } else if (panelName === 'analysis') {
+                 document.getElementById('generate-insights-btn')?.addEventListener('click', generateAIInsights);
             }
         }
 
         function handleFiles(files) {
-            const fileListEl = document.getElementById('file-list');
+            const project = getActiveProject();
             for (const file of files) {
-                if (!projectState.uploadedFiles.some(f => f.name === file.name)) {
-                    projectState.uploadedFiles.push(file);
-                    const fileEl = document.createElement('div');
-                    fileEl.className = 'flex items-center p-2 bg-gray-800/50 rounded-md text-sm';
-                    fileEl.innerHTML = `<i data-lucide="file" class="w-4 h-4 mr-2 text-gray-400"></i><span class="flex-1 truncate">${file.name}</span><button class="ml-2 text-gray-500 hover:text-white">&times;</button>`;
-                    fileEl.querySelector('button').addEventListener('click', () => {
-                        projectState.uploadedFiles = projectState.uploadedFiles.filter(f => f.name !== file.name);
-                        fileEl.remove();
-                    });
-                    fileListEl.appendChild(fileEl);
+                if (!project.uploadedFiles.some(f => f.name === file.name)) {
+                    project.uploadedFiles.push({ name: file.name, size: file.size });
                 }
             }
+            renderFileList();
+        }
+        
+        function renderFileList() {
+            const fileListEl = document.getElementById('file-list');
+            if (!fileListEl) return;
+            fileListEl.innerHTML = '';
+            getActiveProject().uploadedFiles.forEach(file => {
+                const fileEl = document.createElement('div');
+                fileEl.className = 'flex items-center p-2 bg-gray-800/50 rounded-md text-sm';
+                fileEl.innerHTML = `<i data-lucide="file" class="w-4 h-4 mr-2 text-gray-400"></i><span class="flex-1 truncate">${file.name}</span><button class="ml-2 text-gray-500 hover:text-white">&times;</button>`;
+                fileEl.querySelector('button').addEventListener('click', () => {
+                    getActiveProject().uploadedFiles = getActiveProject().uploadedFiles.filter(f => f.name !== file.name);
+                    renderFileList();
+                });
+                fileListEl.appendChild(fileEl);
+            });
             lucide.createIcons();
         }
 
@@ -464,32 +630,50 @@ def read_root():
                 alert('Please provide a description for your application.');
                 return;
             }
-            // Reset state for new project
-            Object.assign(projectState, {
+            unlockUI();
+            const project = getActiveProject();
+            Object.assign(project, {
                 description: description,
                 appType: document.querySelector('input[name="app-type"]:checked').value,
                 useDb: document.getElementById('use-db').checked,
-                useApis: document.getElementById('use-apis').checked,
                 userAuth: document.getElementById('user-auth').checked,
                 intensiveTesting: document.getElementById('intensive-testing').checked,
                 workerCount: document.getElementById('worker-slider').value,
+                isBuilding: true,
                 isComplete: false,
-                chatHistory: [{
-                    sender: 'system',
-                    text: `Starting project: "${description}" (Type: ${document.querySelector('input[name="app-type"]:checked').value}, Workers: ${document.getElementById('worker-slider').value})`
-                }]
+                lastUpdated: Date.now(),
+                chatHistory: [{ sender: 'system', text: `Starting project: "${description}"` }],
             });
-            
-            runWorkflow();
+            // If task plan is empty, generate a default one
+            if (project.taskPlan.length === 0) {
+                 project.taskPlan = [
+                    { id: 0, name: "Define Database Schema", agent: "Worker", status: "pending" },
+                    { id: 1, name: "Set up FastAPI server", agent: "Worker", status: "pending" },
+                    { id: 2, name: "Create API endpoint for user registration", agent: "Worker", status: "pending" },
+                    { id: 3, name: "Build frontend login form", agent: "Worker", status: "pending" },
+                    { id: 4, name: "Write unit tests for API", agent: "Tester", status: "pending" },
+                    { id: 5, name: "Deploy to staging environment", agent: "DevOps", status: "pending" },
+                    { id: 6, name: "Configure DNS records", agent: "DevOps", status: "pending" },
+                    { id: 7, name: "Generate API documentation", agent: "Worker", status: "pending" },
+                    { id: 8, name: "Run security scan", agent: "Tester", status: "pending" },
+                    { id: 9, name: "Final production deployment", agent: "DevOps", status: "pending" },
+                ];
+            }
+            saveProjects();
+            renderProjectList();
+            switchPanel('workflow');
         }
 
         function handleChatMessage() {
             const userPrompt = document.getElementById('user-prompt');
             if (userPrompt && userPrompt.value.trim() !== '') {
-                projectState.chatHistory.push({ sender: 'user', text: userPrompt.value });
-                projectState.isComplete = false;
-                runWorkflow();
+                const project = getActiveProject();
+                project.chatHistory.push({ sender: 'user', text: userPrompt.value });
+                project.chatHistory.push({ sender: 'system', text: `Understood. I will incorporate the changes: "${userPrompt.value}". Revising plan...` });
+                project.isBuilding = true;
+                project.isComplete = false;
                 userPrompt.value = '';
+                switchPanel('workflow');
             }
         }
 
@@ -497,7 +681,7 @@ def read_root():
             const chatHistoryEl = document.getElementById('chat-history');
             if (!chatHistoryEl) return;
             chatHistoryEl.innerHTML = '';
-            projectState.chatHistory.forEach(msg => {
+            getActiveProject().chatHistory.forEach(msg => {
                 const msgEl = document.createElement('div');
                 if (msg.sender === 'user') {
                     msgEl.className = 'flex items-start gap-4 justify-end';
@@ -511,149 +695,339 @@ def read_root():
             chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
         }
 
-
         // --- Workflow Simulation ---
-        const mockTasks = [
-            { name: "Define Database Schema", agent: "Worker" },
-            { name: "Set up FastAPI server", agent: "Worker" },
-            { name: "Create API endpoint for user registration", agent: "Worker" },
-            { name: "Build frontend login form", agent: "Worker" },
-            { name: "Write unit tests for API", agent: "Tester" }
-        ];
-
-        const stages = [
+        const workflowStages = [
             { name: 'manager', duration: 1000, text: 'Manager: Analyzing request...' },
             { name: 'retriever', duration: 1000, text: 'Retriever: Searching knowledge base...' },
             { name: 'worker', duration: 3000, text: 'Worker: Executing tasks...' },
             { name: 'tester', duration: 1500, text: 'Tester: Validating final output...' },
         ];
 
-        function populateTaskPlan() {
-            const taskListEl = mainWorkspace.querySelector('#task-plan-list');
-            if (!taskListEl) return;
-            taskListEl.innerHTML = '';
-            mockTasks.forEach((task, index) => {
-                const taskEl = document.createElement('div');
-                taskEl.id = `task-${index}`;
-                taskEl.className = 'task-item flex items-center p-2 rounded-md bg-gray-800/50';
-                taskEl.innerHTML = `<i data-lucide="clock" class="task-status-icon w-5 h-5 mr-3 text-gray-500"></i><div class="flex-1"><p class="font-medium">${task.name}</p><p class="text-xs text-gray-400">Agent: ${task.agent}</p></div>`;
-                taskListEl.appendChild(taskEl);
-            });
+        async function addTaskToList(task) {
+            const taskListEl = document.getElementById('task-plan-list');
+            const taskListContainer = document.getElementById('task-plan-container');
+            if (!taskListEl || !taskListContainer) return;
+
+            const isScrolledToBottom = taskListContainer.scrollHeight - taskListContainer.clientHeight <= taskListContainer.scrollTop + 20; // 20px buffer
+
+            const taskRow = document.createElement('div');
+            taskRow.id = `task-${task.id}`;
+            taskRow.className = 'task-item grid grid-cols-[auto,1fr,auto] gap-x-4 items-center p-3 rounded-md hover:bg-gray-700/50 border-b border-gray-800';
+            taskRow.innerHTML = `
+                <div class="text-center"><i data-lucide="clock" class="task-status-icon w-5 h-5 mx-auto text-gray-500"></i></div>
+                <div class="font-medium text-base">${task.name}</div>
+                <div class="text-gray-400 text-sm">${task.agent}</div>
+            `;
+            taskListEl.appendChild(taskRow);
             lucide.createIcons();
+            
+            if (isScrolledToBottom) {
+                taskListContainer.scrollTop = taskListContainer.scrollHeight;
+            }
         }
 
-        async function updateTaskStatus(index, status) {
-            const taskEl = mainWorkspace.querySelector(`#task-${index}`);
-            if (!taskEl) return;
-            const iconEl = taskEl.querySelector('.task-status-icon');
-            if (!iconEl) return;
-            let iconName = 'clock';
-            let iconColor = 'text-gray-500';
-            if (status === 'running') {
-                iconName = 'loader-2';
-                iconColor = 'text-blue-500 animate-spin';
-            } else if (status === 'completed') {
-                iconName = 'check-circle-2';
-                iconColor = 'text-green-500';
-            }
-            iconEl.outerHTML = `<i data-lucide="${iconName}" class="task-status-icon w-5 h-5 mr-3 ${iconColor}"></i>`;
+        async function updateTaskStatus(taskId, status) {
+            const taskRow = document.getElementById(`task-${taskId}`);
+            if (!taskRow) return;
+            const iconContainer = taskRow.querySelector('div:first-child');
+            if (!iconContainer) return;
+            let iconName = 'clock'; let iconColor = 'text-gray-500';
+            if (status === 'running') { iconName = 'loader-2'; iconColor = 'text-blue-500 animate-spin'; }
+            else if (status === 'completed') { iconName = 'check-circle-2'; iconColor = 'text-green-500'; }
+            else if (status === 'failed') { iconName = 'x-circle'; iconColor = 'text-red-500'; }
+            iconContainer.innerHTML = `<i data-lucide="${iconName}" class="task-status-icon w-5 h-5 mx-auto ${iconColor}"></i>`;
             lucide.createIcons();
         }
 
         async function runWorkflow() {
-            switchPanel('workflow');
-            await new Promise(r => setTimeout(r, 50));
-
+            await new Promise(r => setTimeout(r, 50)); // allow DOM to update
+            const project = getActiveProject();
+            
             const { nodes, currentStageSpan } = getWorkflowElements();
             if (!currentStageSpan) return;
 
+            // Clear previous run state
             Object.values(nodes).forEach(node => node?.classList.remove('running', 'completed', 'failed'));
             document.getElementById('deploy-btn')?.classList.add('hidden');
-            
-            populateTaskPlan();
+            const taskListEl = document.getElementById('task-plan-list');
+            if(taskListEl) taskListEl.innerHTML = '';
 
-            // Manager & Retriever
-            currentStageSpan.textContent = stages[0].text;
-            nodes.manager.classList.add('running');
-            await new Promise(r => setTimeout(r, stages[0].duration));
-            nodes.manager.classList.remove('running');
-            nodes.manager.classList.add('completed');
 
-            currentStageSpan.textContent = stages[1].text;
-            nodes.retriever.classList.add('running');
-            await new Promise(r => setTimeout(r, stages[1].duration));
-            nodes.retriever.classList.remove('running');
-            nodes.retriever.classList.add('completed');
-            
-            // Worker executes tasks
-            currentStageSpan.textContent = stages[2].text;
-            nodes.worker.classList.add('running');
-            for (let i = 0; i < mockTasks.length; i++) {
-                if (mockTasks[i].agent === 'Worker') {
-                    await updateTaskStatus(i, 'running');
-                    await new Promise(r => setTimeout(r, stages[2].duration / mockTasks.filter(t=>t.agent==='Worker').length));
-                    await updateTaskStatus(i, 'completed');
+            for (const stage of workflowStages) {
+                currentStageSpan.textContent = stage.text;
+                nodes[stage.name].classList.add('running');
+                
+                const agentTasks = project.taskPlan.filter(t => t.agent.toLowerCase() === stage.name || (stage.name === 'worker' && t.agent === 'DevOps'));
+                
+                if (agentTasks.length > 0) {
+                     for (const task of agentTasks) {
+                        await addTaskToList(task);
+                        await updateTaskStatus(task.id, 'running');
+                        await new Promise(r => setTimeout(r, stage.duration / agentTasks.length));
+                        await updateTaskStatus(task.id, 'completed');
+                    }
+                } else {
+                     await new Promise(r => setTimeout(r, stage.duration));
                 }
+                nodes[stage.name].classList.remove('running');
+                nodes[stage.name].classList.add('completed');
             }
-            nodes.worker.classList.remove('running');
-            nodes.worker.classList.add('completed');
-
-            // Tester executes tasks
-            currentStageSpan.textContent = stages[3].text;
-            nodes.tester.classList.add('running');
-            for (let i = 0; i < mockTasks.length; i++) {
-                if (mockTasks[i].agent === 'Tester') {
-                    await updateTaskStatus(i, 'running');
-                    await new Promise(r => setTimeout(r, stages[3].duration / mockTasks.filter(t=>t.agent==='Tester').length));
-                    await updateTaskStatus(i, 'completed');
-                }
-            }
-            nodes.tester.classList.remove('running');
-            nodes.tester.classList.add('completed');
-
-
-            projectState.isComplete = true;
+            
+            project.isBuilding = false;
+            project.isComplete = true;
+            project.lastUpdated = Date.now();
+            saveProjects();
+            renderProjectList();
             showCompletedWorkflow();
-            projectState.chatHistory.push({ sender: 'system', text: 'I have finished the build. You can see the result in the "Preview" tab or deploy from the "Workflow" tab.' });
+            project.chatHistory.push({ sender: 'system', text: 'I have finished the build. You can see the result in the "Preview" tab or deploy from the "Workflow" tab.' });
+            renderChatHistory();
         }
         
         function showCompletedWorkflow() {
-            const { nodes, currentStageSpan, deployBtn } = getWorkflowElements();
+            const { nodes, currentStageSpan } = getWorkflowElements();
             if (!currentStageSpan) return;
             currentStageSpan.textContent = 'Build Complete! Ready to Deploy.';
-            Object.values(nodes).forEach(node => node?.classList.add('completed'));
-            document.getElementById('deploy-btn')?.classList.remove('hidden');
+            Object.values(nodes).forEach(node => {
+                if(node) {
+                   node.classList.remove('running');
+                   node.classList.add('completed');
+                }
+            });
+            const deployBtn = document.getElementById('deploy-btn');
+            if(deployBtn) deployBtn.classList.remove('hidden');
             
-            populateTaskPlan();
-            mockTasks.forEach((_, index) => updateTaskStatus(index, 'completed'));
+            const taskListEl = document.getElementById('task-plan-list');
+            if (taskListEl) {
+                taskListEl.innerHTML = '';
+                getActiveProject().taskPlan.forEach(task => {
+                    const taskRow = document.createElement('div');
+                    taskRow.id = `task-${task.id}`;
+                    taskRow.className = 'task-item grid grid-cols-[auto,1fr,auto] gap-x-4 items-center p-3 rounded-md border-b border-gray-800';
+                    taskRow.innerHTML = `
+                        <div class="text-center"><i data-lucide="check-circle-2" class="task-status-icon w-5 h-5 mx-auto text-green-500"></i></div>
+                        <div class="font-medium text-base">${task.name}</div>
+                        <div class="text-gray-400 text-sm">${task.agent}</div>
+                    `;
+                    taskListEl.appendChild(taskRow);
+                });
+                lucide.createIcons();
+            }
         }
 
         function getWorkflowElements() {
-             return {
+            const viz = document.getElementById('workflow-visualization');
+            if (!viz) return { nodes: {} };
+            
+            if (viz.children.length === 0) {
+                 const nodeData = [
+                    { id: 'manager', icon: 'user-cog', label: 'Manager' },
+                    { id: 'retriever', icon: 'database', label: 'Retriever' },
+                    { id: 'worker', icon: 'bot', label: 'Worker' },
+                    { id: 'tester', icon: 'shield-check', label: 'Tester' }
+                ];
+
+                const flexContainer = document.createElement('div');
+                flexContainer.className = 'relative flex items-center justify-between w-full h-full';
+                viz.appendChild(flexContainer);
+
+                nodeData.forEach(n => {
+                    const nodeEl = document.createElement('div');
+                    nodeEl.id = `node-${n.id}`;
+                    nodeEl.className = 'node w-20 h-20 rounded-full flex flex-col items-center justify-center bg-gray-700 z-10';
+                    nodeEl.innerHTML = `<i data-lucide="${n.icon}" class="w-6 h-6 mb-1"></i><span class="text-xs">${n.label}</span>`;
+                    flexContainer.appendChild(nodeEl);
+                });
+                
+                const connectorLine = document.createElement('div');
+                connectorLine.className = 'node-connector absolute top-1/2 left-0 w-full h-1 bg-gray-600 -translate-y-1/2 z-0';
+                flexContainer.insertBefore(connectorLine, flexContainer.firstChild);
+
+                lucide.createIcons();
+            }
+
+            return {
                 nodes: {
-                    manager: mainWorkspace.querySelector('#node-manager'),
-                    retriever: mainWorkspace.querySelector('#node-retriever'),
-                    worker: mainWorkspace.querySelector('#node-worker'),
-                    tester: mainWorkspace.querySelector('#node-tester'),
+                    manager: viz.querySelector('#node-manager'),
+                    retriever: viz.querySelector('#node-retriever'),
+                    worker: viz.querySelector('#node-worker'),
+                    tester: viz.querySelector('#node-tester'),
                 },
                 currentStageSpan: mainWorkspace.querySelector('#current-stage'),
                 deployBtn: mainWorkspace.querySelector('#deploy-btn'),
             };
         }
 
+        function renderPreview() {
+            const previewContent = document.getElementById('preview-content');
+            if (!previewContent) return;
+            const project = getActiveProject();
+            const previewTemplates = {
+                'web-app': document.getElementById('preview-webapp').innerHTML,
+                'api-service': document.getElementById('preview-api').innerHTML,
+                'ios-app': document.getElementById('preview-ios').innerHTML,
+                'android-app': document.getElementById('preview-android').innerHTML,
+            };
+            previewContent.innerHTML = previewTemplates[project.appType] || previewTemplates['web-app'];
+            lucide.createIcons();
+        }
+
+        function renderAnalysisChart() {
+            const ctx = document.getElementById('engagement-chart')?.getContext('2d');
+            if (!ctx) return;
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'User Engagement',
+                        data: [65, 59, 80, 81, 56, 55, 90],
+                        fill: true,
+                        backgroundColor: 'rgba(124, 58, 237, 0.2)',
+                        borderColor: 'rgba(124, 58, 237, 1)',
+                        tension: 0.3,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { grid: { color: 'rgba(255,255,255,0.1)' } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // --- Gemini API Integration ---
+        function showLoading(show) {
+            loadingOverlay.classList.toggle('hidden', !show);
+            loadingOverlay.classList.toggle('flex', show);
+        }
+
+        async function callGeminiApi(prompt) {
+            showLoading(true);
+            try {
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Leave empty for Canvas
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    throw new Error("Invalid response structure from API.");
+                }
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                alert("An error occurred while communicating with the AI. Please try again.");
+                return null;
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function generateWithAI() {
+            const descriptionEl = document.getElementById('app-description');
+            const initialIdea = descriptionEl.value;
+            if (initialIdea.trim() === '') {
+                alert('Please provide a basic idea for your app first.');
+                return;
+            }
+
+            const prompt = `Based on the user's idea "${initialIdea}", expand it into a detailed, one-paragraph app description. Then, create a JSON array of 10 essential tasks to build this app. The JSON should be an array of objects, where each object has "id", "name", and "agent" properties. The agents can be "Worker", "Tester", or "DevOps". The JSON should be the only thing in your response. Example format: [{"id": 0, "name": "Task Name", "agent": "Worker"}, ...]`;
+            
+            const responseText = await callGeminiApi(prompt);
+            if (!responseText) return;
+
+            try {
+                const jsonStartIndex = responseText.indexOf('[');
+                const jsonEndIndex = responseText.lastIndexOf(']') + 1;
+                const jsonString = responseText.substring(jsonStartIndex, jsonEndIndex);
+                
+                const generatedTasks = JSON.parse(jsonString);
+                const descriptionText = responseText.substring(0, jsonStartIndex).trim();
+
+                descriptionEl.value = descriptionText || initialIdea;
+                getActiveProject().taskPlan = generatedTasks;
+                alert('AI has generated a description and task plan for you!');
+
+            } catch (e) {
+                console.error("Failed to parse AI response:", e);
+                alert("The AI generated an invalid plan. Please try again or write the plan manually.");
+            }
+        }
+
+        async function generateAIInsights() {
+            const insightsListEl = document.getElementById('ai-insights-list');
+            if (!insightsListEl) return;
+
+            const kpiData = {
+                visits: document.getElementById('kpi-visits').textContent,
+                users: document.getElementById('kpi-users').textContent,
+                conversion: document.getElementById('kpi-conversion').textContent,
+                revenue: document.getElementById('kpi-revenue').textContent,
+            };
+
+            const prompt = `You are a business analyst. Based on the following application metrics, provide 2-3 actionable business insights. Metrics: ${JSON.stringify(kpiData)}. Respond with a simple JSON array of strings. Example: ["Insight 1", "Insight 2"]`;
+
+            const responseText = await callGeminiApi(prompt);
+            if (!responseText) return;
+
+            try {
+                const insights = JSON.parse(responseText);
+                insightsListEl.innerHTML = '';
+                insights.forEach(insight => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-start';
+                    li.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-3 text-purple-400 flex-shrink-0 mt-1"></i><span>${insight}</span>`;
+                    insightsListEl.appendChild(li);
+                });
+                lucide.createIcons();
+            } catch(e) {
+                console.error("Failed to parse AI insights:", e);
+                insightsListEl.innerHTML = '<li>Could not generate insights at this time.</li>';
+            }
+        }
+
         // --- Initial Load ---
-        newProjectBtn.addEventListener('click', () => switchPanel('newProject'));
+        newProjectBtn.addEventListener('click', createNewProject);
+        clearProjectsBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to delete all projects?')) {
+                projects = {};
+                activeProjectId = null;
+                saveProjects();
+                renderProjectList();
+                createNewProject(); // Go to a fresh project screen
+            }
+        });
+
         sidebarIcons.forEach(icon => {
             icon.addEventListener('click', () => {
-                if (projectState.description === '' && icon.dataset.panel !== 'newProject') {
-                    alert('Please start a new project first.');
+                const project = getActiveProject();
+                if (project && !project.description) {
+                    // If project exists but hasn't been started, don't switch panels
                     return;
                 }
-                switchPanel(icon.dataset.panel)
+                switchPanel(icon.dataset.panel);
             });
         });
         
-        switchPanel('newProject');
+        loadProjects();
+        if (Object.keys(projects).length === 0) {
+            createNewProject();
+        } else {
+            setActiveProject(Object.keys(projects)[0]);
+        }
 
     </script>
 </body>
