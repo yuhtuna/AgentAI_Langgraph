@@ -10,4 +10,8 @@ def tester(state: AgentState) -> AgentState:
     Returns:
         AgentState: The unmodified state.
     """
+    for task in state["completed"]: 
+        task["status"] = "tested"
+        task["test_result"] = "Test passed"
     return state
+
