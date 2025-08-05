@@ -1,0 +1,491 @@
+"""
+import os 
+import json 
+import hashlib 
+from pathlib import Path 
+from typing import List, Dict, Optional, Tuple 
+from dataclasses import dataclass, asdict
+import chromadb 
+from chromadb.config import Settings
+from src.config import llm
+from tree_sitter import Language, Parser
+import tree_sitter_python as tspython
+import tree_sitter_javascript as tsjavascript
+import tree_sitter_typescript as tstypescript
+
+class CodeVectorStore: 
+    content: str 
+    file_path: str
+    project_name: str 
+    file_type: str 
+    language: str 
+    function_name: Optional[str] = None
+    component_name: Optional[str] = None
+    dependencies: List[str] = []
+    description: str = ""
+    framework: str = "" 
+
+
+class ProjectProcessor: 
+    def __init__(self): 
+        self.setup_parsers() 
+
+    def setup_parsers(self): 
+        self.parsers = {
+            'javascript': Parser(Language(tsjavascript.language())),
+            'typescript': Parser(Language(tstypescript.language_typescript()))
+        }
+        
+        self.languages = {
+            'javascript': Language(tsjavascript.language()),
+            'typescript': Language(tstypescript.language_typescript())
+        }
+
+    def process_project(self, project_path: str, project_name: str) -> List[CodeVectorStore]: 
+        chunks = []
+        project_root = Path(project_path)
+        file_patterns = {
+            'components': ['**/*.tsx', '**/*.jsx', '*.ts', '*.js'],
+            'pages': ['*.tsx', '*.jsx', '*.ts', '*.js'],
+            'api': ['*.ts', '*.js'],
+            'utils': ['*.ts', '*.js'],
+            'schemas': ['*.ts', '*.js'],
+            'styles': ['*.css', '*.scss', '*.less', '*.sass', '*.styl'],
+            'config': ['**/*.config.ts', '**/*.config.js', '**/*.config.json'],
+        }
+    
+        for category, patterns in file_patterns.items(): 
+            for pattern in patterns: 
+                for file in project_root.glob(pattern): 
+                    if file.is_file() and not self._should_ignore_file(file):
+                        chunks.extend(self._process_file(file, category, project_name))
+        return chunks
+        
+    def _should_ignore_file(self, file: Path) -> bool: 
+        ignore_patterns = [ 
+            'node_modules', '.next', '.expo', 'dist', 'build', '.git', '.env', '.DS_Store'
+        ] 
+        return any(pattern in str(file) for pattern in ignore_patterns)
+
+    def _process_file(self, file: Path, category: str, project_name: str) -> List[CodeVectorStore]: 
+        try: 
+            content = file.read_text(encoding='utf-8') 
+            if(file.suffix == 'json'): 
+                return self.process_json_file(file, category, project_name)
+
+            language = self._get_language_from_extension(file.suffix)
+            if not language: 
+                return []
+
+            parser = self.parsers.get(language)
+            tree = parser.parse(content.encode('utf-8'))
+            return self._extract_chunks_from_ast( 
+                tree, content, file, project_name, category, language
+            )            
+        except Exception as e: 
+            print(f"Error processing file {file}: {str(e)}")
+            return []
+
+    def _get_language_from_extension(self, extension: str) -> str: 
+        if extension == '.js' or extension == '.jsx': 
+            return 'javascript'
+        elif extension == '.ts' or extension == '.tsx': 
+            return 'typescript'
+        else: 
+            return None
+
+    def _extract_chunks_from_ast(self, tree, content: str, file: Path, project_name: str, category: str, language: str) -> List[CodeVectorStore]: 
+        chunks = []
+        if(language == 'javascript' or language == 'typescript'): 
+            chunks.extend(self._extract_javascript_chunks(tree, content, file, project_name, category))
+        return chunks
+
+    def _extract_javascript_chunks(self, tree, content, file, project_name, category) -> List[CodeVectorStore]: 
+        chunks = [] 
+        lines = content.split('\n')
+        query_text = """
+        (function_declaration name: (identifier) @func-name) @function
+        (arrow_function) @arrow-func
+        (export_statement) @export
+        (variable_declarator name: (identifier) @var-name value: (arrow_function)) @component
+        (interface_declaration name: (type_identifier) @interface-name) @interface
+        (type_alias_declaration name: (type_identifier) @type-name) @type-alias
+        """
+        try:
+            language_obj = self.languages[self._get_language_from_extension(file.suffix)]
+            query = language_obj.query(query_text)
+            captures = query.captures(tree.root_node)
+            
+            processed_ranges = set()
+            
+            for node, capture_name in captures:
+                start_line = node.start_point[0]
+                end_line = node.end_point[0]
+                
+                # Avoid duplicate chunks for the same code range
+                range_key = (start_line, end_line)
+                if range_key in processed_ranges:
+                    continue
+                processed_ranges.add(range_key)
+                
+                chunk_content = '\n'.join(lines[start_line:end_line + 1])
+                
+                # Determine chunk type and extract metadata
+                chunk = self._create_chunk_from_node(
+                    chunk_content, file, project_name, category, 
+                    capture_name, node, lines
+                )
+                
+                if chunk:
+                    chunks.append(chunk)
+                    
+        except Exception as e:
+            print(f"Error parsing {file}: {e}")
+            # Fallback: create a single chunk for the entire file
+            chunks.append(self._create_fallback_chunk(content, file, project_name, category))
+            
+        return chunks
+    
+
+    def _create_chunk_from_node(self, content: str, file: Path, project_name: str, category: str, capture_name: str, node, lines: List[str]) -> CodeVectorStore: 
+        name = self._extract_name_from_node(node) 
+        framework_type = self.determine_framework_type(file, content)
+        dependencies = self._extract_dependencies(content)
+        description = self._extract_description(content)
+        return CodeVectorStore(
+            content=content,
+            file_path=str(file),
+            project_name=project_name,
+            file_type=self._categorize_chunk_type(capture_name, name, content),
+            language=self._get_language_from_extension(file.suffix),
+            function_name=name if 'func' in capture_name else None,
+            component_name = name if self._is_react_component(content) else None,
+            dependencies=dependencies,
+            description=description,
+            framework=framework_type
+        )
+
+    def _extract_name_from_node(self, node) -> str: 
+        if(node.type == 'function_declaration'): 
+            return node.children[1].text.decode('utf-8')
+        elif(node.type == 'arrow_function'): 
+            return node.children[0].text.decode('utf-8')
+        elif(node.type == 'variable_declarator'): 
+            return node.children[0].text.decode('utf-8')
+        elif(node.type == 'interface_declaration'): 
+            return node.children[1].text.decode('utf-8')
+        elif(node.type == 'type_alias_declaration'): 
+            return node.children[1].text.decode('utf-8')
+        return None
+    
+    def _determine_framework_type(self, file: Path, content: str) -> str:
+        path_str = str(file).lower()
+        
+        if 'convex' in path_str:
+            return 'convex'
+        elif any(x in path_str for x in ['app', 'pages', 'components']) and 'native' not in path_str:
+            return 'nextjs'
+        elif any(x in path_str for x in ['native', 'expo', 'mobile']):
+            return 'expo'
+        elif 'clerk' in content.lower():
+            return 'clerk'
+        
+        return 'general'
+
+    def _extract_dependencies(self, content: str) -> List[str]: 
+        dependencies = []
+        lines = content.split('\n')
+        for line in lines:
+            line = line.strip()
+            if line.startswith('import ') or line.startswith('from '):
+                # Extract module names from import statements
+                if 'from ' in line:
+                    parts = line.split('from ')
+                    if len(parts) > 1:
+                        module = parts[1].strip().strip("';\"")
+                        dependencies.append(module)
+                elif line.startswith('import '):
+                    # Handle: import module from 'module'
+                    parts = line.split(' from ')
+                    if len(parts) > 1:
+                        module = parts[1].strip().strip("';\"")
+                        dependencies.append(module)
+        
+        return dependencies
+
+    def _is_react_component(self, content: str, name: Optional[str]) -> bool: 
+        if not name: 
+            return False
+        if not name[0].isupper(): 
+            return False 
+        jsx_patterns = ['return (', '<div', '<View', 'React.', 'useState', 'useEffect']
+        return any(pattern in content for pattern in jsx_patterns)
+        
+    def _categorize_chunk_type(self, capture_name: str, name: Optional[str], content: str) -> str:
+        """Categorize the type of code chunk"""
+        if self._is_react_component(content, name):
+            return 'component'
+        elif 'func' in capture_name:
+            return 'function'
+        elif 'interface' in capture_name or 'type' in capture_name:
+            return 'schema'
+        elif 'export' in capture_name:
+            return 'export'
+        else:
+            return 'general'
+    
+    def _generate_description(self, content: str, name: Optional[str], framework_type: str) -> str:
+        """Generate a description for the code chunk"""
+        if not name:
+            return f"Code snippet from {framework_type}"
+            
+        # Look for comments near the top
+        lines = content.split('\n')[:5]  # First 5 lines
+        for line in lines:
+            line = line.strip()
+            if line.startswith('//') or line.startswith('/*') or line.startswith('*'):
+                comment = line.lstrip('/*/ *').strip()
+                if len(comment) > 10:  # Meaningful comment
+                    return comment
+        
+        # Generate based on code patterns
+        if self._is_react_component(content, name):
+            return f"React component: {name} ({framework_type})"
+        elif 'function' in content.lower() or 'const' in content:
+            return f"Function: {name} ({framework_type})"
+        else:
+            return f"Code: {name} ({framework_type})"
+    
+    def _process_json_file(self, file_path: Path, project_name: str, content: str) -> List[CodeVectorStore]:
+        """Process JSON configuration files"""
+        try:
+            data = json.loads(content)
+            
+            # Special handling for package.json
+            if file_path.name == 'package.json':
+                description = f"Package configuration - {data.get('name', 'Unknown')}"
+                dependencies = list(data.get('dependencies', {}).keys())
+                
+                return [CodeVectorStore(
+                    content=content,
+                    file_path=str(file_path),
+                    project_name=project_name,
+                    file_type='config',
+                    language='json',
+                    dependencies=dependencies,
+                    description=description,
+                    framework_type='config'
+                )]
+                
+        except json.JSONDecodeError:
+            pass
+            
+        return []
+
+    def _create_fallback_chunk(self, content: str, file_path: Path, project_name: str, category: str) -> CodeVectorStore:
+        """Create a fallback chunk when parsing fails"""
+        return CodeVectorStore(
+            content=content,
+            file_path=str(file_path),
+            project_name=project_name,
+            file_type=category,
+            language=self._get_language_from_extension(file_path.suffix) or 'text',
+            description=f"Code from {file_path.name}",
+            framework_type=self._determine_framework_type(file_path, content)
+        )
+
+class RAGVectorStore: 
+
+    def __init__(self, collection_name: str = "narbtech_code", persist_directory: str = "./chroma_db"):
+         self.client = chromadb.PersistentClient(path=persist_directory)
+         self.collection_name = collection_name
+         self.collection = None 
+         self._setup_collection()
+
+    def _setup_collection(self): 
+        try: 
+            self.collection = self.client.get_collection(name=self.collection_name)
+            print(f"Loaded existing collection: {self.collection_name}")
+        except Exception as e: 
+            self.collection = self.client.create_collection(
+                name=self.collection_name,
+                metadata={"description": "Narbtech code chunks for RAG"}
+            )
+            print(f"Created new collection: {self.collection_name}")
+    
+    def add_chunks(self, chunks: List[CodeVectorStore]): 
+        if not chunks: 
+            return 
+        
+        documents = []
+        metadatas = []
+        ids = []
+
+        for chunk in chunks: 
+            doc_text = self._create_searchable_text(chunk)
+            documents.append(doc_text)
+            
+            # Create metadata
+            metadata = asdict(chunk)
+            del metadata['content']  # Don't duplicate content in metadata
+            metadatas.append(metadata)
+            
+            # Create unique ID
+            chunk_id = self._generate_chunk_id(chunk)
+            ids.append(chunk_id)
+        
+        batch_size = 100
+        for i in range(0, len(documents), batch_size):
+            batch_docs = documents[i:i+batch_size]
+            batch_metadata = metadatas[i:i+batch_size]
+            batch_ids = ids[i:i+batch_size]
+            
+            self.collection.add(
+                documents=batch_docs,
+                metadatas=batch_metadata,
+                ids=batch_ids
+            )
+            
+        print(f"Added {len(chunks)} chunks to vector database")
+    
+    def _create_searchable_text(self, chunk: CodeVectorStore) -> str:
+        """Create searchable text representation of code chunk"""
+        searchable_parts = [
+            f"Framework: {chunk.framework_type}",
+            f"Type: {chunk.file_type}",
+            f"Language: {chunk.language}",
+            f"Description: {chunk.description}",
+        ]
+        
+        if chunk.component_name:
+            searchable_parts.append(f"Component: {chunk.component_name}")
+        if chunk.function_name:
+            searchable_parts.append(f"Function: {chunk.function_name}")
+        if chunk.dependencies:
+            searchable_parts.append(f"Dependencies: {', '.join(chunk.dependencies)}")
+            
+        searchable_parts.append(f"Code:\n{chunk.content}")
+        
+        return "\n".join(searchable_parts)
+
+    def _generate_chunk_id(self, chunk: CodeVectorStore) -> str:
+        """Generate unique ID for chunk"""
+        content_hash = hashlib.md5(chunk.content.encode()).hexdigest()[:8]
+        return f"{chunk.project_name}_{chunk.framework_type}_{content_hash}"
+
+    def search(self, query: str, n_results: int = 5, 
+              framework_filter: Optional[str] = None,
+              file_type_filter: Optional[str] = None) -> List[Dict]:
+        """Search for code chunks"""
+        where_clause = {}
+        if framework_filter:
+            where_clause["framework_type"] = framework_filter
+        if file_type_filter:
+            where_clause["file_type"] = file_type_filter
+
+        results = self.collection.query(
+            query_texts=[query],
+            n_results=n_results,
+            where=where_clause if where_clause else None
+        )
+        
+        # Format results
+        formatted_results = []
+        if results['documents']:
+            for i, doc in enumerate(results['documents'][0]):
+                result = {
+                    'content': doc,
+                    'metadata': results['metadatas'][0][i],
+                    'distance': results['distances'][0][i] if 'distances' in results else None
+                }
+                formatted_results.append(result)
+        
+        return formatted_results
+
+class RAGRetriever: 
+    def __init__(self, vector_store: RAGVectorStore): 
+        self.vector_store = vector_store
+
+    def retrieve_context(self, user_request: str, max_chunks: int = 5) -> List[str]: 
+        """Retrieve context from vector store"""
+        requirements = self._parse_requirements(user_request)
+        
+        all_results = []
+        if self._mentions_ui(user_request):
+            ui_results = self.vector_store.search(
+                query=f"{user_request} React component UI",
+                n_results=3,
+                file_type_filter="component"
+            )
+            all_results.extend(ui_results)
+        
+        # Search for backend functionality
+        if self._mentions_backend(user_request):
+            backend_results = self.vector_store.search(
+                query=f"{user_request} function API",
+                n_results=3,
+                framework_filter="convex"
+            )
+            all_results.extend(backend_results)
+        
+        # General search
+        general_results = self.vector_store.search(
+            query=user_request,
+            n_results=max_chunks - len(all_results)
+        )
+        all_results.extend(general_results)
+        
+        # Extract and rank contexts
+        contexts = []
+        for result in all_results[:max_chunks]:
+            # Get the actual code content from metadata
+            contexts.append(self._format_context(result))
+        
+        return contexts
+
+    def _parse_requirements(self, user_request: str) -> Dict[str, bool]:
+        """Parse user requirements"""
+        request_lower = user_request.lower()
+        return {
+            'needs_ui': any(term in request_lower for term in ['page', 'component', 'form', 'button', 'ui', 'interface']),
+            'needs_backend': any(term in request_lower for term in ['api', 'database', 'function', 'store', 'save', 'fetch']),
+            'needs_mobile': any(term in request_lower for term in ['mobile', 'native', 'expo', 'react native']),
+            'needs_auth': any(term in request_lower for term in ['auth', 'login', 'user', 'signin', 'signup'])
+        }
+    
+    def _mentions_ui(self, request: str) -> bool:
+        """Check if request mentions UI elements"""
+        ui_terms = ['page', 'component', 'form', 'button', 'ui', 'interface', 'layout', 'design']
+        return any(term in request.lower() for term in ui_terms)
+    
+    def _mentions_backend(self, request: str) -> bool:
+        """Check if request mentions backend functionality"""
+        backend_terms = ['api', 'database', 'function', 'store', 'save', 'fetch', 'query', 'mutation']
+        return any(term in request.lower() for term in backend_terms)
+    
+    def _format_context(self, result: Dict) -> str:
+        """Format search result into context string"""
+        metadata = result['metadata']
+        
+        context_parts = [
+            f"// File: {metadata['file_path']}",
+            f"// Project: {metadata['project_name']}",
+            f"// Type: {metadata['file_type']} ({metadata['framework_type']})",
+            f"// Description: {metadata['description']}",
+        ]
+        
+        if metadata.get('dependencies'):
+            context_parts.append(f"// Dependencies: {', '.join(metadata['dependencies'])}")
+        
+        context_parts.append("")  # Empty line
+        
+        # Extract actual code content (it's embedded in the searchable text)
+        content = result['content']
+        if "Code:\n" in content:
+            code_content = content.split("Code:\n", 1)[1]
+            context_parts.append(code_content)
+        else:
+            context_parts.append(content)
+        
+        return "\n".join(context_parts)
+"""
