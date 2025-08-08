@@ -1,7 +1,7 @@
 from typing import TypedDict, List, Union
 from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import HumanMessage, AIMessage
-from src.state import AgentState
+from src.state import AgentState, ValidationReport, Task
 
 from src.nodes.aggregator import aggregator_node
 from src.nodes.resource_monitor import resource_monitor_node
@@ -25,9 +25,15 @@ graph.add_node("aggregator", aggregator_node)
 graph.add_node("manager_planning", manager_planning_node)
 graph.add_node("retriever", retriever_node)
 
-graph.add_entry_node("manager")
+graph.set_entry_point("manager")
 graph.add_conditional_edges(
     "manager",
+    route_after_manager, 
+    {
+        "clarify": END,  # Pause for user input
+        "plan": "retriever",
+        "replan": "manager_planning"
+    }
 
 )
 
@@ -35,11 +41,35 @@ graph.add_edge("retriever", "manager_planning")
 graph.add_edge("manager_planning", "resource_monitor")
 graph.add_edge("resource_monitor", "worker") 
 graph.add_edge("worker", "aggregator")
-graph.add_edge("aggregator", "tester")
 
 graph.add_conditional_edges(
     "tester",
-    edges={}
+    route_after_tester, 
+    {
+        "passed": END,
+        "failed": "manager_planning"
+    }
 )
 
 graph.compile()
+
+initial_state = AgentState(
+    user_request="Create a task management web application with user authentication",
+    clarified_request="",
+    is_clarification_needed=False,
+    clarification_questions=[],
+    retrieved_context=[],
+    task_plan=[],
+    completed_tasks=[],
+    final_deliverable="",
+    validation_report=ValidationReport(status="", details=""),
+    cost_estimate=0.0,
+    current_cost=0.0,
+    user_interrupt=None,
+    manager_analysis=None
+)
+
+compiled_graph = graph.compile()
+result = compiled_graph.invoke(initial_state) 
+print("Reached conclusion")
+print(f"Final state: {result}")
