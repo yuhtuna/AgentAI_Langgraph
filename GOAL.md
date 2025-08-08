@@ -62,7 +62,7 @@ class AgentState(TypedDict):
     clarification_questions: List[str]
     retrieved_context: List[str]
     task_plan: List[Task]
-    completed_tasks: Dict[int, Task]
+    completed_tasks: List[Task]
     final_deliverable: str
     validation_report: ValidationReport
     cost_estimate: float
