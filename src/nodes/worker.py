@@ -1,5 +1,5 @@
-from src.state import AgentState
-from src.config import llm
+from state import AgentState
+from config import llm
 from langchain.prompts import PromptTemplate
 
 def worker_node(state: AgentState) -> AgentState:
