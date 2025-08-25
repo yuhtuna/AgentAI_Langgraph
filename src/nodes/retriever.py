@@ -1,4 +1,4 @@
-from src.state import AgentState
+from state import AgentState
 
 def retriever_node(state: AgentState) -> AgentState:
     """

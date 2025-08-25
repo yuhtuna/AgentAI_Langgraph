@@ -1,4 +1,4 @@
-from src.state import AgentState, ValidationReport
+from state import AgentState, ValidationReport
 
 def tester(state: AgentState) -> AgentState:
     """

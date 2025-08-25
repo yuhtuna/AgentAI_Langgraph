@@ -1,4 +1,4 @@
-from src.state import AgentState
+from state import AgentState
 
 def resource_monitor_node(state: AgentState) -> AgentState:
     active_tasks = [task for task in state.get('task_plan', []) if task['status'] != 'cancelled']
