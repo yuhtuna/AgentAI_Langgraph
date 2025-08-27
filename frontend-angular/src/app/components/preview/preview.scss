@@ -1,0 +1,368 @@
+// Glassmorphism effect
+.glassmorphism {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+// Preview container
+.preview-container {
+  border-radius: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+// Header section
+.preview-header {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(75, 85, 99, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  .preview-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: #9ca3af;
+  }
+  
+  h3 {
+    font-weight: 600;
+    margin: 0;
+    color: #f3f4f6;
+  }
+}
+
+// Content area
+.preview-content {
+  flex: 1;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom-left-radius: 0.75rem;
+  border-bottom-right-radius: 0.75rem;
+  color: #374151;
+  overflow-y: auto;
+}
+
+// Web App Preview
+.preview-webapp {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.webapp-mockup {
+  text-align: center;
+  padding: 2rem;
+  border: 2px dashed #d1d5db;
+  border-radius: 0.5rem;
+  max-width: 400px;
+  
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #111827;
+  }
+  
+  .webapp-description {
+    color: #6b7280;
+    margin-bottom: 1rem;
+  }
+  
+  .webapp-cta-button {
+    background: #7c3aed;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background: #6d28d9;
+      transform: translateY(-1px);
+    }
+  }
+}
+
+// API Service Preview
+.preview-api {
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  height: 100%;
+  overflow-y: auto;
+  padding: 1rem;
+  background: #1f2937;
+  color: white;
+  border-radius: 0.5rem;
+  
+  .api-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #22c55e;
+  }
+  
+  .api-endpoints {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .endpoint {
+    border-radius: 0.375rem;
+    overflow: hidden;
+    
+    &.endpoint-get { background: rgba(34, 197, 94, 0.1); }
+    &.endpoint-post { background: rgba(59, 130, 246, 0.1); }
+    &.endpoint-put { background: rgba(245, 158, 11, 0.1); }
+    &.endpoint-delete { background: rgba(239, 68, 68, 0.1); }
+  }
+  
+  .endpoint-header {
+    padding: 0.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+  }
+  
+  .http-method {
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    
+    &.method-get { background: #22c55e; color: white; }
+    &.method-post { background: #3b82f6; color: white; }
+    &.method-put { background: #f59e0b; color: white; }
+    &.method-delete { background: #ef4444; color: white; }
+  }
+  
+  .api-disclaimer {
+    color: #9ca3af;
+    font-size: 0.75rem;
+    font-style: italic;
+  }
+}
+
+// iOS App Preview
+.preview-ios {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.ios-device {
+  width: 100%;
+  max-width: 320px;
+  background: white;
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  padding: 0.5rem;
+  overflow: hidden;
+  
+  .ios-header {
+    background: black;
+    color: white;
+    border-radius: 1rem 1rem 0 0;
+    padding: 1rem;
+    text-align: center;
+    font-weight: 700;
+  }
+  
+  .ios-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    
+    h3 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 0;
+    }
+  }
+  
+  .ios-button {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &.ios-button-primary {
+      background: #3b82f6;
+      color: white;
+      
+      &:hover {
+        background: #2563eb;
+      }
+    }
+    
+    &.ios-button-secondary {
+      background: #e5e7eb;
+      color: #374151;
+      
+      &:hover {
+        background: #d1d5db;
+      }
+    }
+  }
+}
+
+// Android App Preview
+.preview-android {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.android-device {
+  width: 100%;
+  max-width: 320px;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  
+  .android-header {
+    background: #0d9488;
+    color: white;
+    padding: 1rem;
+    
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0;
+    }
+  }
+  
+  .android-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    
+    h3 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 0;
+    }
+  }
+  
+  .android-button {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    border: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: #7c3aed;
+    color: white;
+    
+    &:hover {
+      background: #6d28d9;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    &.android-button-secondary {
+      background: #e5e7eb;
+      color: #374151;
+      
+      &:hover {
+        background: #d1d5db;
+      }
+    }
+  }
+}
+
+// Loading state
+.preview-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  gap: 0.5rem;
+  
+  .loading-spinner {
+    width: 2rem;
+    height: 2rem;
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// Status indicators
+.preview-status {
+  padding: 1rem;
+  text-align: center;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  
+  &.status-ready {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+  }
+  
+  .status-icon {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .preview-content {
+    padding: 0.5rem;
+  }
+  
+  .ios-device, .android-device {
+    max-width: 280px;
+  }
+  
+  .webapp-mockup {
+    padding: 1rem;
+  }
+}

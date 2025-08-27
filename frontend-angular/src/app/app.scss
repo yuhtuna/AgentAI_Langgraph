@@ -1,0 +1,219 @@
+// App Container Layout
+.app-container {
+  display: flex;
+  height: 100vh;
+  background: #111827; // dark gray-900
+  color: white;
+  overflow: hidden;
+}
+
+// Left Sidebar Styles
+.sidebar {
+  width: 16rem; // 64 * 4px = 256px
+  background: rgba(17, 24, 39, 0.5); // gray-900 with opacity
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #374151; // gray-700
+  flex-shrink: 0;
+  min-height: 100vh;
+  height: 100%;
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+
+    .logo {
+      margin-right: 0.75rem;
+      width: 2.5rem;
+      height: 2.5rem;
+      object-fit: cover;
+    }
+
+    .app-title {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: white;
+      margin: 0;
+    }
+  }
+
+  .new-project-btn {
+    width: 100%;
+    background: #7c3aed; // purple-600
+    color: white;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    transition: background-color 0.2s;
+    cursor: pointer;
+
+    &:hover {
+      background: #6d28d9; // purple-700
+    }
+
+    i {
+      margin-right: 0.5rem;
+    }
+  }
+
+  .project-history {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+
+    .section-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #9ca3af; // gray-400
+      margin: 0 0 0.5rem 0;
+    }
+
+    .project-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+
+      .project-item {
+        display: block;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        color: inherit;
+        transition: background-color 0.2s;
+
+        &:hover {
+          background: #1f2937; // gray-800
+        }
+
+        &.active {
+          background: rgba(55, 65, 81, 0.5); // gray-700 with opacity
+        }
+
+        .project-name {
+          font-weight: 600;
+          margin: 0 0 0.25rem 0;
+        }
+
+        .project-date {
+          font-size: 0.75rem;
+          color: #9ca3af; // gray-400
+          margin: 0;
+        }
+      }
+    }
+  }
+
+  .clear-btn {
+    color: #9ca3af; // gray-400
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    margin-top: 1rem;
+    padding: 0.5rem 0;
+    cursor: pointer;
+    transition: color 0.2s;
+
+    &:hover {
+      color: white;
+    }
+
+    i {
+      margin-right: 0.5rem;
+    }
+  }
+}
+
+// Main Content Area
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.5rem 2rem 1.5rem;
+  overflow-y: auto;
+
+  @media (min-width: 768px) {
+    padding: 1.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    padding: 2rem;
+  }
+}
+
+// Right Toolbar Styles  
+.toolbar {
+  width: 4rem; // 64px
+  background: #111827; // gray-900
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0;
+  gap: 1rem;
+  border-left: 1px solid #374151; // gray-700
+  min-height: 100vh;
+  height: 100%;
+
+  .toolbar-btn {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background: none;
+    border: none;
+    color: #9ca3af; // gray-400
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #7c3aed; // purple-600
+      color: white;
+    }
+
+    &.active {
+      background: #7c3aed; // purple-600
+      color: white;
+    }
+
+    i {
+      display: block;
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid #374151;
+  }
+
+  .toolbar {
+    width: 100%;
+    height: auto;
+    min-height: auto;
+    flex-direction: row;
+    justify-content: center;
+    border-left: none;
+    border-top: 1px solid #374151;
+  }
+
+  .main-content {
+    padding: 1rem;
+  }
+}

@@ -1,0 +1,25 @@
+/* You can add global styles to this file, and also import other style files */
+
+/* Global reset to ensure the app container fits the viewport and remove white gaps */
+html, body, app-root {
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Set page background and default text color to match app theme */
+body {
+  background: #0b1220; /* dark background similar to app */
+  color: white;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Make box-sizing consistent */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Ensure the Angular root element stretches */
+app-root { display: block; height: 100%; }
+
+/* Existing global styles can follow below */

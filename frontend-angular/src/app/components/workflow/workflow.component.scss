@@ -1,0 +1,408 @@
+// Glassmorphism effect matching basic_UI.html
+.glassmorphism {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+// Center the main title
+h3 {
+  text-align: center;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #f3f4f6;
+}
+
+// Workflow container
+.workflow-container {
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+// Grid layout with proper spacing
+.workflow-grid {
+  flex: 1;
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .workflow-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+// Left column centering
+.workflow-left-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+// Right column
+.workflow-right-column {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+// Status section
+.status-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(75, 85, 99, 0.5);
+  text-align: center;
+}
+
+.status-text {
+  color: #9ca3af;
+  font-size: 1.125rem;
+  background-color: rgba(31, 41, 55, 0.8);
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.status-value {
+  color: #d8b4fe;
+  font-weight: 700;
+}
+
+// Deploy button styling matching basic_UI.html
+.deploy-btn {
+  margin-top: 1rem;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  font-weight: 700;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.125rem;
+  text-decoration: none;
+}
+
+.deploy-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+.deploy-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+// Loading state
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+  font-size: 1.125rem;
+}
+
+// Empty task state
+.task-empty-state {
+  color: #9ca3af;
+  text-align: center;
+  padding: 2rem 0;
+  font-style: italic;
+}
+
+// Node styling to match basic_UI.html
+.node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(75, 85, 99, 0.3); /* gray-600 with opacity */
+  border: 2px solid #4b5563; /* gray-600 */
+  color: white;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 2;
+  margin: 0 auto; /* Center nodes */
+}
+
+.node i {
+  margin-bottom: 4px;
+}
+
+.node-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 4px;
+  color: #d1d5db;
+}
+
+// Node states matching basic_UI.html
+.node.running {
+  background-color: #3b82f6; /* blue-500 */
+  border-color: #3b82f6;
+  box-shadow: 0 0 15px #3b82f6;
+  color: white;
+  
+  .node-label {
+    color: #93c5fd; /* blue-300 */
+  }
+}
+
+.node.completed {
+  background-color: #22c55e; /* green-500 */
+  border-color: #22c55e;
+  color: white;
+  
+  .node-label {
+    color: #86efac; /* green-300 */
+  }
+}
+
+.node.failed {
+  background-color: #ef4444; /* red-500 */
+  border-color: #ef4444;
+  color: white;
+  
+  .node-label {
+    color: #fca5a5; /* red-300 */
+  }
+}
+
+// Connector styling matching basic_UI.html
+.node-connector {
+  position: absolute;
+  height: 2px;
+  background-color: #4b5563; /* gray-600 */
+  top: 50%;
+  left: 12.5%;
+  width: 75%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+// Workflow nodes container with proper centering
+.workflow-nodes-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 500px;
+  height: 120px;
+  margin: 2rem auto; /* Center the container */
+}
+
+// Left column centering
+.flex.flex-col.items-center.justify-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+// Task plan styling matching basic_UI.html
+.task-plan {
+  padding: 1rem;
+  
+  h4 { 
+    font-size: 1rem; 
+    font-weight: 600; 
+    margin-bottom: 0.75rem;
+    color: #f3f4f6;
+    text-align: center;
+  }
+
+  .task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 22rem;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+  }
+
+  .task-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    margin-bottom: 0.25rem;
+  }
+
+  .task-item:hover { 
+    transform: translateY(-2px); 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+  }
+
+  .task-icon {
+    width: 2rem;
+    height: 2rem;
+    margin-right: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex: 0 0 auto;
+  }
+
+  .task-icon.task-pending i { 
+    color: #9ca3af; 
+  }
+  
+  .task-icon.task-running { 
+    background: linear-gradient(180deg, #3b82f6, #2563eb); 
+    color: white; 
+  }
+  
+  .task-icon.task-running i { 
+    animation: spin 1s linear infinite; 
+    color: white; 
+  }
+  
+  .task-icon.task-done { 
+    background: linear-gradient(90deg, #22c55e, #16a34a); 
+    color: white; 
+  }
+
+  .task-details { 
+    flex: 1; 
+    min-width: 0; 
+  }
+  
+  .task-name { 
+    font-weight: 600; 
+    margin: 0 0 0.25rem 0; 
+    color: #f3f4f6; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    white-space: nowrap; 
+  }
+  
+  .task-agent { 
+    font-size: 0.875rem; 
+    margin: 0; 
+    color: rgba(255,255,255,0.65); 
+  }
+}
+
+@keyframes spin { 
+  from { transform: rotate(0deg); } 
+  to { transform: rotate(360deg); } 
+}
+
+// Bottom status section with proper styling
+.mt-4.pt-4.border-t.border-gray-700.text-center {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(75, 85, 99, 0.5);
+  text-align: center;
+}
+
+// Status text styling
+.text-gray-400.text-lg.bg-gray-800.px-6.py-3.rounded-lg.inline-block {
+  color: #9ca3af;
+  font-size: 1.125rem;
+  background-color: rgba(31, 41, 55, 0.8);
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.text-purple-300.font-bold {
+  color: #d8b4fe;
+  font-weight: 700;
+}
+
+// Deploy button styling matching basic_UI.html
+.mt-4.bg-green-600 {
+  margin-top: 1rem;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  font-weight: 700;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.125rem;
+  text-decoration: none;
+}
+
+.mt-4.bg-green-600:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+.mt-4.bg-green-600 i {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+// Loading state
+.flex.items-center.justify-center.h-full.text-gray-400 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+  font-size: 1.125rem;
+}
+
+// Responsive design
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .workflow-nodes-container {
+    max-width: 100%;
+    height: 100px;
+    margin: 1rem auto;
+  }
+  
+  .node {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .node i {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  
+  .node-label {
+    font-size: 0.625rem;
+  }
+  
+  .task-plan {
+    padding: 0.5rem;
+  }
+}

@@ -1,0 +1,85 @@
+<div class="glassmorphism workflow-container" *ngIf="project">
+  <h3>AI AGENT WORKFLOW</h3>
+  <div class="grid workflow-grid">
+    <!-- Left Column: Node Visualization -->
+    <div class="workflow-left-column">
+      <div class="workflow-nodes-container">
+        
+        <!-- Manager Node -->
+        <div id="node-manager" class="node" [ngClass]="getNodeStatus('Manager')">
+          <i data-lucide="brain" class="w-8 h-8"></i>
+          <span class="node-label">Manager</span>
+        </div>
+
+        <!-- Connector -->
+        <div class="node-connector"></div>
+
+        <!-- Retriever Node -->
+        <div id="node-retriever" class="node" [ngClass]="getNodeStatus('Retriever')">
+          <i data-lucide="search" class="w-8 h-8"></i>
+          <span class="node-label">Retriever</span>
+        </div>
+
+        <!-- Connector -->
+        <div class="node-connector"></div>
+
+        <!-- Worker Node -->
+        <div id="node-worker" class="node" [ngClass]="getNodeStatus('Worker')">
+          <i data-lucide="wrench" class="w-8 h-8"></i>
+          <span class="node-label">Worker</span>
+        </div>
+
+        <!-- Connector -->
+        <div class="node-connector"></div>
+
+        <!-- Tester Node -->
+        <div id="node-tester" class="node" [ngClass]="getNodeStatus('Tester')">
+          <i data-lucide="check-circle" class="w-8 h-8"></i>
+          <span class="node-label">Tester</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Right Column: Task Plan -->
+    <div class="workflow-right-column">
+      <div class="task-plan">
+        <h4>Task Execution Plan</h4>
+        <div class="task-list" *ngIf="project.taskPlan && project.taskPlan.length > 0">
+          <div *ngFor="let task of project.taskPlan; let i = index" 
+               class="task-item" 
+               [id]="'task-' + i">
+            <div class="task-icon" [ngClass]="getTaskIconClass(task.status)">
+              <i [attr.data-lucide]="getTaskIconName(task.status)" class="w-5 h-5"></i>
+            </div>
+            <div class="task-details">
+              <p class="task-name">{{ task.name }}</p>
+              <p class="task-agent">Agent: {{ task.agent }}</p>
+            </div>
+          </div>
+        </div>
+        <div *ngIf="!project.taskPlan || project.taskPlan.length === 0" 
+             class="task-empty-state">
+          Task plan will appear here once the project starts...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Status Section -->
+  <div class="status-section">
+    <p class="status-text">
+      STATUS: <span class="status-value">{{ project.currentStage || 'Idle' }}</span>
+    </p>
+    <button *ngIf="project.isComplete" 
+            (click)="deploy()" 
+            class="deploy-btn">
+      <i data-lucide="upload-cloud" class="deploy-icon"></i>
+      Deploy Application
+    </button>
+  </div>
+</div>
+
+<div *ngIf="!project" class="loading-state">
+  <p>Loading project data...</p>
+</div>

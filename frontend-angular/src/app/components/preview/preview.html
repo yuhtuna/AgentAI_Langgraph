@@ -1,0 +1,91 @@
+<div class="glassmorphism preview-container">
+  <div class="preview-header">
+    <i data-lucide="eye" class="preview-icon"></i>
+    <h3>{{ getPreviewTitle() }}</h3>
+  </div>
+  
+  <div class="preview-content" *ngIf="project">
+    
+    <!-- Web App Preview -->
+    <div *ngIf="project.appType === 'web-app'" class="preview-webapp">
+      <div class="webapp-mockup">
+        <h2>{{ getProjectTitle() }}</h2>
+        <p class="webapp-description">Your generated application preview will appear here.</p>
+        <button class="webapp-cta-button">Get Started</button>
+      </div>
+    </div>
+
+    <!-- API Service Preview -->
+    <div *ngIf="project.appType === 'api-service'" class="preview-api">
+      <h2 class="api-title">{{ getProjectTitle() }} - Swagger UI</h2>
+      <div class="api-endpoints">
+        <div class="endpoint endpoint-get">
+          <div class="endpoint-header">
+            <span class="http-method method-get">GET</span>
+            /api/v1/users
+          </div>
+        </div>
+        <div class="endpoint endpoint-post">
+          <div class="endpoint-header">
+            <span class="http-method method-post">POST</span>
+            /api/v1/users
+          </div>
+        </div>
+        <div class="endpoint endpoint-put">
+          <div class="endpoint-header">
+            <span class="http-method method-put">PUT</span>
+            /api/v1/users/:id
+          </div>
+        </div>
+        <div class="endpoint endpoint-delete">
+          <div class="endpoint-header">
+            <span class="http-method method-delete">DELETE</span>
+            /api/v1/users/:id
+          </div>
+        </div>
+      </div>
+      <p class="api-disclaimer">* This is a mock-up of the Swagger/OpenAPI documentation that will be generated for your API.</p>
+    </div>
+
+    <!-- iOS App Preview -->
+    <div *ngIf="project.appType === 'ios-app'" class="preview-ios">
+      <div class="ios-device">
+        <div class="ios-header">{{ getProjectTitle() }}</div>
+        <div class="ios-content">
+          <h3>Welcome!</h3>
+          <button class="ios-button ios-button-primary">Log In</button>
+          <button class="ios-button ios-button-secondary">Sign Up</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Android App Preview -->
+    <div *ngIf="project.appType === 'android-app'" class="preview-android">
+      <div class="android-device">
+        <div class="android-header">
+          <h2>{{ getProjectTitle() }}</h2>
+        </div>
+        <div class="android-content">
+          <h3>Welcome!</h3>
+          <button class="android-button">LOG IN</button>
+          <button class="android-button android-button-secondary">SIGN UP</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="!project" class="preview-loading">
+    <i data-lucide="loader-2" class="loading-spinner"></i>
+    <p>Loading preview...</p>
+  </div>
+
+  <!-- Empty State for completed projects -->
+  <div *ngIf="project && project.isComplete" class="preview-status">
+    <div class="status-badge status-ready">
+      <i data-lucide="check-circle" class="status-icon"></i>
+      <span>Ready for Deployment</span>
+    </div>
+  </div>
+</div>

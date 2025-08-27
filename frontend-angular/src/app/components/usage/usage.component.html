@@ -1,0 +1,320 @@
+<div class="analytics-container">
+  <div class="analytics-header">
+    <div class="header-icon">
+      <i data-feather="bar-chart-2" class="w-8 h-8"></i>
+    </div>
+    <h2>Advanced Analytics Dashboard</h2>
+    <p>Comprehensive insights into your AI agent performance, cost optimization, and user engagement metrics</p>
+  </div>
+
+  <div *ngIf="project" class="analytics-content">
+    <!-- Key Performance Indicators -->
+    <div class="kpi-section">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon">
+            <i data-feather="users" class="w-5 h-5"></i>
+          </div>
+          <div class="metric-content">
+            <span class="metric-value">{{ totalUsers | number }}</span>
+            <span class="metric-label">Active Users</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">
+            <i data-feather="user-plus" class="w-5 h-5"></i>
+          </div>
+          <div class="metric-content">
+            <span class="metric-value">+{{ newUsers | number }}</span>
+            <span class="metric-label">New Users (7d)</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">
+            <i data-feather="dollar-sign" class="w-5 h-5"></i>
+          </div>
+          <div class="metric-content">
+            <span class="metric-value">${{ currentCost | number:'1.2-2' }}</span>
+            <span class="metric-label">Current Spend</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">
+            <i data-feather="cpu" class="w-5 h-5"></i>
+          </div>
+          <div class="metric-content">
+            <span class="metric-value">{{ getCompletedTasks() | number }}</span>
+            <span class="metric-label">Tasks Completed</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">
+            <i data-feather="clock" class="w-5 h-5"></i>
+          </div>
+          <div class="metric-content">
+            <span class="metric-value">{{ getAverageTaskTime() }}min</span>
+            <span class="metric-label">Avg Response Time</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">
+            <i data-feather="trending-up" class="w-5 h-5"></i>
+          </div>
+          <div class="metric-content">
+            <span class="metric-value">{{ getSuccessRate() }}%</span>
+            <span class="metric-label">Success Rate</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics Dashboard Main Content -->
+    <div class="dashboard-grid">
+      <!-- Left Column: Charts & Insights -->
+      <div class="dashboard-left">
+        <!-- Prominent User Engagement Chart -->
+        <div class="section-card chart-featured">
+          <h3>
+            <i data-feather="activity" class="w-5 h-5"></i>
+            User Engagement & Growth Analytics
+          </h3>
+          <div class="page-access-graph large" style="position: relative;">
+            <svg width="100%" height="300" viewBox="0 0 800 300">
+              <!-- Enhanced Grid Lines -->
+              <defs>
+                <pattern id="grid" width="80" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M 80 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+                </pattern>
+                <pattern id="gridMajor" width="160" height="80" patternUnits="userSpaceOnUse">
+                  <path d="M 160 0 L 0 0 0 80" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+              <rect width="100%" height="100%" fill="url(#gridMajor)" />
+              
+              <!-- Chart Background -->
+              <rect x="80" y="40" width="640" height="200" fill="rgba(255,255,255,0.01)" rx="8" />
+              
+              <!-- Axes with Labels -->
+              <line x1="80" y1="240" x2="720" y2="240" stroke="#475569" stroke-width="3" />
+              <line x1="80" y1="40" x2="80" y2="240" stroke="#475569" stroke-width="3" />
+              
+              <!-- Y-axis Labels -->
+              <text x="70" y="60" text-anchor="end" font-size="12" font-weight="500" fill="#94a3b8">300</text>
+              <text x="70" y="110" text-anchor="end" font-size="12" font-weight="500" fill="#94a3b8">200</text>
+              <text x="70" y="160" text-anchor="end" font-size="12" font-weight="500" fill="#94a3b8">100</text>
+              <text x="70" y="210" text-anchor="end" font-size="12" font-weight="500" fill="#94a3b8">0</text>
+              
+              <!-- Data Lines with Area Fill -->
+              <defs>
+                <linearGradient id="accessArea" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" style="stop-color:#6366f1;stop-opacity:0.3" />
+                  <stop offset="100%" style="stop-color:#6366f1;stop-opacity:0.05" />
+                </linearGradient>
+                <linearGradient id="usersArea" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.3" />
+                  <stop offset="100%" style="stop-color:#10b981;stop-opacity:0.05" />
+                </linearGradient>
+              </defs>
+              
+              <!-- Area fills -->
+              <polygon [attr.points]="accessAreaPolygonPoints" fill="url(#accessArea)" />
+              <polygon [attr.points]="usersAreaPolygonPoints" fill="url(#usersArea)" />
+              
+              <!-- Data Lines -->
+              <polyline
+                [attr.points]="pageAccessPointsLarge"
+                fill="none" stroke="url(#accessGradient)" stroke-width="4" />
+              <polyline
+                [attr.points]="newUsersPointsLarge"
+                fill="none" stroke="url(#usersGradient)" stroke-width="4" />
+                
+              <!-- Gradient Definitions -->
+              <defs>
+                <linearGradient id="accessGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+                  <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="usersGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+                  <stop offset="50%" style="stop-color:#059669;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+                </linearGradient>
+              </defs>
+
+              <!-- Interactive Data Points -->
+              <circle *ngFor="let d of pageAccessData; let i = index" 
+                      [attr.cx]="80 + i*90" 
+                      [attr.cy]="240 - d.accesses/1.5" 
+                      r="6" 
+                      fill="#6366f1" 
+                      stroke="#ffffff" 
+                      stroke-width="3"
+                      style="filter: drop-shadow(0 4px 8px rgba(99,102,241,0.5)); cursor: pointer;" />
+              <circle *ngFor="let d of pageAccessData; let i = index" 
+                      [attr.cx]="80 + i*90" 
+                      [attr.cy]="240 - d.newUsers*10" 
+                      r="6" 
+                      fill="#10b981" 
+                      stroke="#ffffff" 
+                      stroke-width="3"
+                      style="filter: drop-shadow(0 4px 8px rgba(16,185,129,0.5)); cursor: pointer;" />
+
+              <!-- Enhanced Labels -->
+              <text *ngFor="let d of pageAccessData; let i = index" 
+                    [attr.x]="80 + i*90" 
+                    y="265" 
+                    text-anchor="middle" 
+                    font-size="13" 
+                    font-weight="600"
+                    fill="#cbd5e1">{{ d.date }}</text>
+            </svg>
+
+            <div class="legend enhanced">
+              <div class="legend-item">
+                <span class="legend-dot" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);"></span>
+                <span class="legend-text">Page Access Trends</span>
+                <span class="legend-value">{{ pageAccessData[pageAccessData.length-1]?.accesses || 0 }}</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot" style="background: linear-gradient(135deg, #10b981, #059669);"></span>
+                <span class="legend-text">New User Growth</span>
+                <span class="legend-value">+{{ pageAccessData[pageAccessData.length-1]?.newUsers || 0 }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Insights Section -->
+        <div class="section-card ai-summary featured">
+          <h3>
+            <i data-feather="gift" class="w-5 h-5"></i>
+            AI-Powered Strategic Insights
+          </h3>
+          <div class="ai-summary-content">
+            <p>{{ getAISummary() }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Performance & Costs -->
+      <div class="dashboard-right">
+        <!-- Agent Performance Analytics -->
+        <div class="section-card performance-card">
+          <h3>
+            <i data-feather="activity" class="w-5 h-5"></i>
+            Agent Performance
+          </h3>
+          <div class="performance-grid compact">
+            <div class="performance-item">
+              <div class="performance-label">Total Tasks</div>
+              <div class="performance-value">{{ getTotalTasks() | number }}</div>
+              <div class="performance-bar">
+                <div class="performance-progress" [style.width]="'100%'"></div>
+              </div>
+            </div>
+            
+            <div class="performance-item">
+              <div class="performance-label">Completed</div>
+              <div class="performance-value">{{ getCompletedTasks() | number }}</div>
+              <div class="performance-bar">
+                <div class="performance-progress completed" [style.width]="getCompletionPercentage() + '%'"></div>
+              </div>
+            </div>
+            
+            <div class="performance-item">
+              <div class="performance-label">In Progress</div>
+              <div class="performance-value">{{ getInProgressTasks() | number }}</div>
+              <div class="performance-bar">
+                <div class="performance-progress in-progress" [style.width]="getInProgressPercentage() + '%'"></div>
+              </div>
+            </div>
+            
+            <div class="performance-item">
+              <div class="performance-label">Queued</div>
+              <div class="performance-value">{{ getFailedTasks() | number }}</div>
+              <div class="performance-bar">
+                <div class="performance-progress failed" [style.width]="getFailedPercentage() + '%'"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cost Intelligence -->
+        <div class="section-card cost-card">
+          <h3>
+            <i data-feather="credit-card" class="w-5 h-5"></i>
+            Cost Intelligence
+          </h3>
+          <div class="cost-breakdown compact">
+            <div class="cost-bar-container">
+              <div class="cost-label">
+                <span>Budget Utilization</span>
+                <span class="cost-percentage">{{ getCostProgressWidth() }}</span>
+              </div>
+              <div class="cost-bar">
+                <div class="cost-progress" [style.width]="getCostProgressWidth()"></div>
+              </div>
+              <div class="cost-values">
+                <span class="current-cost">${{ currentCost | number:'1.2-2' }}</span>
+                <span class="estimate">Est: ${{ costEstimate | number:'1.2-2' }}</span>
+              </div>
+            </div>
+            
+            <div class="monthly-estimates compact">
+              <h4>Resource Breakdown</h4>
+              <div class="estimate-grid">
+                <div class="estimate-item">
+                  <span class="service-name">GPT-4 API</span>
+                  <span class="service-cost">$20</span>
+                </div>
+                <div class="estimate-item">
+                  <span class="service-name">Search API</span>
+                  <span class="service-cost">$10</span>
+                </div>
+                <div class="estimate-item">
+                  <span class="service-name">Database</span>
+                  <span class="service-cost">$5</span>
+                </div>
+                <div class="estimate-item">
+                  <span class="service-name">Infrastructure</span>
+                  <span class="service-cost">$15</span>
+                </div>
+                <div class="estimate-total">
+                  <span class="total-label">Monthly</span>
+                  <span class="total-cost">$50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Section: Timeline -->
+    <div class="timeline-section">
+      <div class="section-card timeline-card">
+        <h3>
+          <i data-feather="clock" class="w-5 h-5"></i>
+          Live Activity Timeline
+        </h3>
+        <div class="timeline horizontal">
+          <div class="timeline-item" *ngFor="let event of getTimelineEvents()">
+            <div class="timeline-dot" [class]="event.type"></div>
+            <div class="timeline-content">
+              <div class="timeline-title">{{ event.title }}</div>
+              <div class="timeline-description">{{ event.description }}</div>
+              <div class="timeline-time">{{ event.time }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="!project" class="loading-state">
+    <div class="spinner"></div>
+    <p>Initializing advanced analytics dashboard...</p>
+  </div>
+</div>

@@ -1,0 +1,79 @@
+<div class="code-container">
+  <div class="code-header">
+    <div class="header-left">
+      <i data-lucide="code-2" class="icon-lg"></i>
+      <h2 class="page-title">Code Generation</h2>
+    </div>
+    <div class="header-actions">
+      <button class="action-btn primary" (click)="generateCode()">
+        <i data-lucide="play-circle" class="icon-sm"></i>
+        Generate
+      </button>
+      <button class="action-btn secondary" (click)="exportCode()">
+        <i data-lucide="download" class="icon-sm"></i>
+        Export
+      </button>
+    </div>
+  </div>
+
+  <div class="code-content">
+    <div class="code-section">
+      <h3 class="section-title">
+        <i data-lucide="file-code" class="icon-sm"></i>
+        Generated Code
+      </h3>
+      <div class="code-editor">
+        <div class="code-toolbar">
+          <span class="file-name">main.py</span>
+          <button class="copy-btn">
+            <i data-lucide="copy" class="icon-xs"></i>
+          </button>
+        </div>
+        <div class="code-block">
+          <pre><code># Generated Python code will appear here
+def main():
+    print("Hello, World!")
+
+if __name__ == "__main__":
+    main()</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-section">
+      <h3 class="section-title">
+        <i data-lucide="folder" class="icon-sm"></i>
+        Project Structure
+      </h3>
+      <div class="file-tree">
+        <div class="tree-item folder">
+          <i data-lucide="folder" class="icon-xs"></i>
+          <span>src/</span>
+        </div>
+        <div class="tree-item file indent-1">
+          <i data-lucide="file-code" class="icon-xs"></i>
+          <span>main.py</span>
+        </div>
+        <div class="tree-item file indent-1">
+          <i data-lucide="file" class="icon-xs"></i>
+          <span>requirements.txt</span>
+        </div>
+        <div class="tree-item folder">
+          <i data-lucide="folder" class="icon-xs"></i>
+          <span>tests/</span>
+        </div>
+        <div class="tree-item file indent-1">
+          <i data-lucide="file-code" class="icon-xs"></i>
+          <span>test_main.py</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="code-actions">
+    <button class="download-btn" (click)="downloadProject()">
+      <i data-lucide="download-cloud" class="icon-sm"></i>
+      Download Project
+    </button>
+  </div>
+</div>

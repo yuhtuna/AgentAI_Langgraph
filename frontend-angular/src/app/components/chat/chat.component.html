@@ -1,0 +1,31 @@
+<div class="chat-container">
+  <div class="chat-history">
+    <div *ngFor="let message of messages" class="message" [class.user-message]="isUserMessage(message)">
+      <div *ngIf="!isUserMessage(message)" class="ai-avatar">A</div>
+      <div class="message-content" [class.user-content]="isUserMessage(message)">
+        <p>{{ message.text }}</p>
+      </div>
+      <div *ngIf="isUserMessage(message)" class="user-avatar">U</div>
+    </div>
+  </div>
+
+  <div class="chat-input-container">
+    <div class="input-wrapper">
+      <textarea 
+        [(ngModel)]="newMessage" 
+        (input)="adjustTextareaHeight($event)"
+        (keydown.enter)="sendMessage()"
+        class="chat-input"
+        rows="1"
+        placeholder="Ask for a modification or new feature..."
+      ></textarea>
+      <button 
+        (click)="sendMessage()" 
+        class="send-btn"
+        [disabled]="!newMessage.trim()"
+      >
+        <span class="send-icon">➤</span>
+      </button>
+    </div>
+  </div>
+</div>

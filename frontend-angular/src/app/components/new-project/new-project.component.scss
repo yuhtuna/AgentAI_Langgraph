@@ -1,0 +1,360 @@
+.new-project-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  max-width: 64rem;
+  margin: 0 auto;
+
+  /* allow natural height expansion since parent .cover now handles scrolling */
+  min-height: 100%;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* Make inner sections sized properly so the container scrolls instead of overflowing */
+.form-section, .grid-section, .upload-section {
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+
+  .rocket-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1rem;
+    
+    i {
+      color: #7c3aed;
+      filter: drop-shadow(0 2px 8px rgba(124, 58, 237, 0.3));
+      /* Remove animation to make it stationary */
+    }
+
+    /* Fallback emoji using CSS - only shows if Lucide doesn't load */
+    .lucide-rocket:not(:has(svg))::before {
+      content: "🚀";
+      font-size: 2rem;
+      display: inline-block;
+      /* Remove animation from fallback too */
+    }
+
+    /* When Lucide loads, the SVG will be inside the i element */
+    .lucide-rocket svg {
+      width: 2rem;
+      height: 2rem;
+      /* Make it outline only - purple stroke, no fill */
+      stroke: #7c3aed;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  }
+
+  h2 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    color: #9ca3af;
+    font-size: 1rem;
+  }
+}
+
+@keyframes rocket-float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(2deg); }
+}
+
+.form-section {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    margin-left: 0.5rem;
+  }
+}
+
+.description-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0.5rem;
+  font-size: 1.125rem;
+  resize: none;
+  outline: none;
+  color: white;
+
+  &::placeholder {
+    color: #6b7280;
+  }
+
+  /* Limit description height and allow scrolling inside it */
+  max-height: 12rem;
+  overflow: auto;
+  white-space: normal;
+}
+
+.grid-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.left-column, .right-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group {
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}
+
+.app-types {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.app-type-card {
+  input[type="radio"] {
+    display: none;
+  }
+
+  input[type="radio"]:checked + .card-content {
+    border-color: #7c3aed;
+    background: rgba(124, 58, 237, 0.2);
+    transform: scale(1.05);
+  }
+
+  .card-content {
+    border: 2px solid #4b5563;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+
+    .icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .label {
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+  }
+}
+
+.slider-container {
+  label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #d1d5db;
+    margin-bottom: 0.5rem;
+  }
+
+  .worker-count {
+    font-weight: bold;
+    color: #7c3aed;
+  }
+
+  .slider {
+    width: 100%;
+    height: 0.5rem;
+    background: #374151;
+    border-radius: 0.5rem;
+    outline: none;
+    -webkit-appearance: none;
+
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 1.25rem;
+      height: 1.25rem;
+      background: #7c3aed;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+  }
+}
+
+.checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: #d1d5db;
+  font-size: 1rem;
+
+  &:hover {
+    background: rgba(31, 41, 55, 0.8);
+  }
+
+  &.highlighted {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+  }
+
+  input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-right: 1rem;
+    accent-color: #7c3aed;
+  }
+
+  .tooltip {
+    margin-left: auto;
+    color: #6b7280;
+    cursor: help;
+  }
+}
+
+.upload-section {
+  width: 100%;
+  margin-bottom: 1.5rem;
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}
+
+.dropzone {
+  border: 2px dashed #4b5563;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #7c3aed;
+    background: rgba(31, 41, 55, 0.5);
+  }
+
+  .upload-icon {
+    font-size: 2.5rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  p {
+    color: #9ca3af;
+    margin-bottom: 0.5rem;
+  }
+
+  .browse-btn {
+    background: none;
+    border: none;
+    color: #7c3aed;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+  }
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+
+  /* Keep file list scrollable if many files are added */
+  max-height: 10rem;
+  overflow: auto;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(55, 65, 81, 0.5);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+
+  .file-icon {
+    margin-right: 0.5rem;
+    color: #6b7280;
+  }
+
+  .file-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .remove-btn {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    transition: color 0.2s;
+
+    &:hover {
+      color: white;
+    }
+  }
+}
+
+.start-btn {
+  background: #7c3aed;
+  color: white;
+  font-weight: bold;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  border: none;
+  font-size: 1.125rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #6d28d9;
+    transform: scale(1.05);
+  }
+}
