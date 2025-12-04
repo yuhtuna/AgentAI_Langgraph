@@ -22,7 +22,8 @@ class SimpleRAGRetriever:
         for i, result in enumerate(results):
             context = self._format_context(result)
             contexts.append(context)
-            print(f"Result {i+1}: {result['metadata']['file_path']} (distance: {result.get('distance', 'N/A')})")
+            # Removed file path and distance printing to prevent information disclosure
+            # print(f"Result {i+1}: {result['metadata']['file_path']} (distance: {result.get('distance', 'N/A')})")
         
         return contexts
     
@@ -31,7 +32,7 @@ class SimpleRAGRetriever:
         metadata = result['metadata']
         
         context_parts = [
-            f"// File: {metadata['file_path']}",
+            f"// File: {metadata.get('file_path', 'N/A')}", # Use get() to handle missing keys
             f"// Project: {metadata['project_name']}",
             f"// Type: {metadata['file_type']} ({metadata['framework']})",
             f"// Description: {metadata['description']}",
@@ -46,7 +47,9 @@ class SimpleRAGRetriever:
         content = result['content']
         if "Code:\n" in content:
             code_content = content.split("Code:\n", 1)[1]
-            context_parts.append(code_content)
+            # Removed direct code printing to prevent information disclosure
+            # context_parts.append(code_content)
+            context_parts.append("Code content retrieved.  (Content omitted for security)")
         else:
             context_parts.append(content)
         

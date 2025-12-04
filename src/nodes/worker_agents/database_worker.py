@@ -4,6 +4,7 @@ from .base_worker import BaseWorker
 from langchain.prompts import PromptTemplate
 from src.config import llm
 import json
+import re
 
 CONVEX_SCHEMA_PROMPT = """
 You are a database expert specializing in Convex (https://docs.convex.dev/).
@@ -70,6 +71,20 @@ class DatabaseWorker(BaseWorker):
             content = content[:-3].strip()
         return content
 
+    def _validate_json(self, json_str: str) -> bool:
+        """
+        Validates the JSON string for potentially malicious content.
+        This is a basic check and should be enhanced for production use.
+        """
+        try:
+            json.loads(json_str)
+            # Basic check: disallow JavaScript-like constructs
+            if re.search(r"(?:import|eval|require|process|constructor|prototype)\s*\(", json_str, re.IGNORECASE):
+                return False
+            return True
+        except json.JSONDecodeError:
+            return False
+
     def build(self, task: Task, context: Dict[str, Any]) -> Dict[str, Any]:
         response = None
         try:
@@ -84,6 +99,15 @@ class DatabaseWorker(BaseWorker):
             )
             print("\n[DatabaseWorker] Raw LLM response:", response.content)
             json_str = self._extract_json_from_llm_response(response.content)
+            if not self._validate_json(json_str):
+                print("[DatabaseWorker] Invalid JSON detected (malicious content).")
+                return {
+                    'result': "Error: Invalid JSON from LLM response (potential security risk).",
+                    'error': "Invalid JSON (potential malicious content)",
+                    'artifacts': {
+                        'raw_response': json_str
+                    }
+                }
             try:
                 db_result = json.loads(json_str)
             except Exception as e:
@@ -180,4 +204,4 @@ class DatabaseWorker(BaseWorker):
                 'status': 'Failed',
                 'error': str(e),
                 'checks': []
-            } 
+            }
