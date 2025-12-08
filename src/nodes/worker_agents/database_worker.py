@@ -22,6 +22,7 @@ Instructions:
 6. If requirements are unclear, ask clarifying questions and do not generate code.
 
 Respond with a valid JSON object in this format:
+```json
 {{
   "clarification_questions": ["..."],
   "schema_ts": "// Convex schema as a TypeScript string",
@@ -30,6 +31,7 @@ Respond with a valid JSON object in this format:
   "indexes": ["..."],
   "validation_notes": "// Any validation or constraint notes"
 }}
+```
 """
 
 class DatabaseWorker(BaseWorker):
@@ -85,8 +87,9 @@ class DatabaseWorker(BaseWorker):
             print("\n[DatabaseWorker] Raw LLM response:", response.content)
             json_str = self._extract_json_from_llm_response(response.content)
             try:
+                # Attempt to parse the JSON string.  If it fails, handle the error gracefully.
                 db_result = json.loads(json_str)
-            except Exception as e:
+            except json.JSONDecodeError as e:
                 print("[DatabaseWorker] Error parsing JSON:", e)
                 return {
                     'result': f"Error parsing JSON: {str(e)}",
@@ -96,6 +99,17 @@ class DatabaseWorker(BaseWorker):
                         'raw_response': json_str
                     }
                 }
+            except Exception as e:
+                print("[DatabaseWorker] Unexpected error during JSON parsing:", e)
+                return {
+                    'result': f"Unexpected error during JSON parsing: {str(e)}",
+                    'error': str(e),
+                    'artifacts': {
+                        'error_details': str(e),
+                        'raw_response': json_str
+                    }
+                }
+
             if 'clarification_questions' in db_result and db_result['clarification_questions']:
                 print("[DatabaseWorker] Clarification needed:", db_result['clarification_questions'])
                 return {
@@ -180,4 +194,4 @@ class DatabaseWorker(BaseWorker):
                 'status': 'Failed',
                 'error': str(e),
                 'checks': []
-            } 
+            }
