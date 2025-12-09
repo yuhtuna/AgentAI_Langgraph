@@ -4,7 +4,9 @@ from .base_worker import BaseWorker
 from langchain.prompts import PromptTemplate
 from src.config import llm
 import json
+import re
 
+# Enhanced prompt with safety measures
 CONVEX_SCHEMA_PROMPT = """
 You are a database expert specializing in Convex (https://docs.convex.dev/).
 
@@ -20,6 +22,8 @@ Instructions:
 4. Propose seed data as a TypeScript/JSON object.
 5. List any indexes and validation notes.
 6. If requirements are unclear, ask clarifying questions and do not generate code.
+7. **IMPORTANT: Always respond with a valid JSON object.  Do not include any extra text outside of the JSON object. The JSON object MUST contain the following keys: "clarification_questions" (list of strings, can be empty), "schema_ts" (string), "migration_ts" (string), "seed_data" (string), "indexes" (list of strings, can be empty), and "validation_notes" (string).  If you cannot fulfill the request, return an empty schema, migration script, and seed data, and populate clarification questions.**
+8. **IMPORTANT: Sanitize all code snippets to prevent malicious code injection.  Ensure all code is valid TypeScript.**
 
 Respond with a valid JSON object in this format:
 {{
@@ -61,14 +65,15 @@ class DatabaseWorker(BaseWorker):
         }
 
     def _extract_json_from_llm_response(self, content: str) -> str:
+        """
+        Extracts JSON from the LLM response, handling potential formatting issues.
+        """
         content = content.strip()
-        if content.startswith("```json"):
-            content = content[len("```json"):].strip()
-        elif content.startswith("```"):
-            content = content[len("```"):].strip()
-        if content.endswith("```"):
-            content = content[:-3].strip()
-        return content
+        # Attempt to find the JSON object using regex, handling potential code blocks
+        match = re.search(r'{.*}', content, re.DOTALL)
+        if match:
+            return match.group(0)
+        return content  # Return original content if no match
 
     def build(self, task: Task, context: Dict[str, Any]) -> Dict[str, Any]:
         response = None
@@ -82,11 +87,11 @@ class DatabaseWorker(BaseWorker):
                     requirements=db_context['requirements']
                 )
             )
-            print("\n[DatabaseWorker] Raw LLM response:", response.content)
+            # Removed raw response logging
             json_str = self._extract_json_from_llm_response(response.content)
             try:
                 db_result = json.loads(json_str)
-            except Exception as e:
+            except json.JSONDecodeError as e:
                 print("[DatabaseWorker] Error parsing JSON:", e)
                 return {
                     'result': f"Error parsing JSON: {str(e)}",
@@ -180,4 +185,4 @@ class DatabaseWorker(BaseWorker):
                 'status': 'Failed',
                 'error': str(e),
                 'checks': []
-            } 
+            }

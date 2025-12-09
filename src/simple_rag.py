@@ -31,14 +31,12 @@ class SimpleRAGRetriever:
         metadata = result['metadata']
         
         context_parts = [
-            f"// File: {metadata['file_path']}",
             f"// Project: {metadata['project_name']}",
             f"// Type: {metadata['file_type']} ({metadata['framework']})",
             f"// Description: {metadata['description']}",
         ]
         
-        if metadata.get('dependencies'):
-            context_parts.append(f"// Dependencies: {', '.join(metadata['dependencies'])}")
+        # Removed file path and dependencies to prevent information disclosure.
         
         context_parts.append("")  # Empty line
         
