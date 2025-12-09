@@ -7,7 +7,7 @@ class SimpleRAGRetriever:
 
     def retrieve_context(self, user_request: str, max_chunks: int = 5) -> List[str]: 
         """Simplified retrieval - just search and return top results"""
-        print(f"Searching for: '{user_request}'")
+        # print(f"Searching for: '{user_request}'")
         
         # Direct search without complex filtering
         results = self.vector_store.search(
@@ -15,14 +15,14 @@ class SimpleRAGRetriever:
             n_results=max_chunks
         )
         
-        print(f"Found {len(results)} results")
+        # print(f"Found {len(results)} results")
         
         # Format results
         contexts = []
         for i, result in enumerate(results):
             context = self._format_context(result)
             contexts.append(context)
-            print(f"Result {i+1}: {result['metadata']['file_path']} (distance: {result.get('distance', 'N/A')})")
+            # print(f"Result {i+1}: {result['metadata']['file_path']} (distance: {result.get('distance', 'N/A')})")
         
         return contexts
     
@@ -31,10 +31,10 @@ class SimpleRAGRetriever:
         metadata = result['metadata']
         
         context_parts = [
-            f"// File: {metadata['file_path']}",
-            f"// Project: {metadata['project_name']}",
-            f"// Type: {metadata['file_type']} ({metadata['framework']})",
-            f"// Description: {metadata['description']}",
+            f"// File: {metadata.get('file_name', 'unknown')}",
+            f"// Project: {metadata.get('project_name', 'unknown')}",
+            f"// Type: {metadata.get('file_type', 'unknown')} ({metadata.get('framework', 'unknown')})",
+            f"// Description: {metadata.get('description', 'unknown')}",
         ]
         
         if metadata.get('dependencies'):

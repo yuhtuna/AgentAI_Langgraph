@@ -4,6 +4,7 @@ from .base_worker import BaseWorker
 from langchain.prompts import PromptTemplate
 from src.config import llm
 import json
+import re
 
 CONVEX_SCHEMA_PROMPT = """
 You are a database expert specializing in Convex (https://docs.convex.dev/).
@@ -61,14 +62,21 @@ class DatabaseWorker(BaseWorker):
         }
 
     def _extract_json_from_llm_response(self, content: str) -> str:
+        """
+        Extracts JSON from the LLM response, handling potential code block delimiters.
+        Uses regex to safely extract JSON, preventing injection.
+        """
         content = content.strip()
-        if content.startswith("```json"):
-            content = content[len("```json"):].strip()
-        elif content.startswith("```"):
-            content = content[len("```"):].strip()
-        if content.endswith("```"):
-            content = content[:-3].strip()
-        return content
+        # Use regex to find the JSON content, handling ```json, ```, and no delimiters.
+        match = re.search(r"```json\s*([\s\S]*?)\s*```", content) or \
+                re.search(r"```\s*([\s\S]*?)\s*```", content) or \
+                re.search(r"({[\s\S]*})", content)  # Match JSON directly if no delimiters
+
+        if match:
+            json_str = match.group(1).strip()
+            return json_str
+        return content  # Return original content if no JSON is found.
+
 
     def build(self, task: Task, context: Dict[str, Any]) -> Dict[str, Any]:
         response = None
@@ -86,16 +94,27 @@ class DatabaseWorker(BaseWorker):
             json_str = self._extract_json_from_llm_response(response.content)
             try:
                 db_result = json.loads(json_str)
+            except json.JSONDecodeError as e:
+                print("[DatabaseWorker] Error parsing JSON:", e)
+                return {
+                    'result': "Error parsing LLM response. Please check the response format.",
+                    'error': "Invalid JSON format in LLM response.",
+                    'artifacts': {
+                        'error_details': str(e),
+                        'raw_response': "LLM response could not be parsed as valid JSON.  Check the raw_response for details.  The response was: " + json_str
+                    }
+                }
             except Exception as e:
                 print("[DatabaseWorker] Error parsing JSON:", e)
                 return {
-                    'result': f"Error parsing JSON: {str(e)}",
+                    'result': "Error parsing LLM response. Please check the response format.",
                     'error': str(e),
                     'artifacts': {
                         'error_details': str(e),
-                        'raw_response': json_str
+                        'raw_response': "LLM response could not be parsed as valid JSON.  Check the raw_response for details.  The response was: " + json_str
                     }
                 }
+
             if 'clarification_questions' in db_result and db_result['clarification_questions']:
                 print("[DatabaseWorker] Clarification needed:", db_result['clarification_questions'])
                 return {
@@ -127,7 +146,7 @@ class DatabaseWorker(BaseWorker):
         except Exception as e:
             print("[DatabaseWorker] Error in build phase:", e)
             return {
-                'result': f"Error in build phase: {str(e)}",
+                'result': "An unexpected error occurred during the build phase.",
                 'error': str(e),
                 'artifacts': {
                     'error_details': str(e),
@@ -180,4 +199,4 @@ class DatabaseWorker(BaseWorker):
                 'status': 'Failed',
                 'error': str(e),
                 'checks': []
-            } 
+            }
