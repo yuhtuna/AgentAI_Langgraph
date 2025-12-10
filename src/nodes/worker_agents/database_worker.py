@@ -4,6 +4,7 @@ from .base_worker import BaseWorker
 from langchain.prompts import PromptTemplate
 from src.config import llm
 import json
+from jsonschema import validate, ValidationError
 
 CONVEX_SCHEMA_PROMPT = """
 You are a database expert specializing in Convex (https://docs.convex.dev/).
@@ -14,6 +15,7 @@ Project Requirements:
 {requirements}
 
 Instructions:
+You are to generate a valid JSON object that adheres to the following schema.
 1. Analyze the requirements and clarify any ambiguities.
 2. Design a Convex database schema (TypeScript) using defineSchema, defineTable, and appropriate field types and indexes.
 3. Output a migration script (TypeScript) for schema creation.
@@ -22,6 +24,7 @@ Instructions:
 6. If requirements are unclear, ask clarifying questions and do not generate code.
 
 Respond with a valid JSON object in this format:
+```json
 {{
   "clarification_questions": ["..."],
   "schema_ts": "// Convex schema as a TypeScript string",
@@ -30,6 +33,7 @@ Respond with a valid JSON object in this format:
   "indexes": ["..."],
   "validation_notes": "// Any validation or constraint notes"
 }}
+```
 """
 
 class DatabaseWorker(BaseWorker):
@@ -50,6 +54,25 @@ class DatabaseWorker(BaseWorker):
             template=CONVEX_SCHEMA_PROMPT,
             input_variables=["task_goal", "requirements"]
         )
+        self.json_schema = {
+            "type": "object",
+            "properties": {
+                "clarification_questions": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                },
+                "schema_ts": {"type": "string"},
+                "migration_ts": {"type": "string"},
+                "seed_data": {"type": "string"},
+                "indexes": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                },
+                "validation_notes": {"type": "string"}
+            },
+            "required": ["schema_ts", "migration_ts", "seed_data"],
+            "additionalProperties": False
+        }
 
     def get_relevant_code_context(self, task: Task, state_context: Dict[str, Any]) -> Dict[str, Any]:
         context = super().get_relevant_code_context(task)
@@ -86,14 +109,25 @@ class DatabaseWorker(BaseWorker):
             json_str = self._extract_json_from_llm_response(response.content)
             try:
                 db_result = json.loads(json_str)
-            except Exception as e:
+                validate(instance=db_result, schema=self.json_schema)
+            except json.JSONDecodeError as e:
                 print("[DatabaseWorker] Error parsing JSON:", e)
                 return {
                     'result': f"Error parsing JSON: {str(e)}",
                     'error': str(e),
                     'artifacts': {
                         'error_details': str(e),
-                        'raw_response': json_str
+                        # Removed raw_response to prevent information leakage
+                    }
+                }
+            except ValidationError as e:
+                print("[DatabaseWorker] JSON schema validation error:", e)
+                return {
+                    'result': f"JSON schema validation error: {str(e)}",
+                    'error': str(e),
+                    'artifacts': {
+                        'error_details': str(e),
+                        # Removed raw_response to prevent information leakage
                     }
                 }
             if 'clarification_questions' in db_result and db_result['clarification_questions']:
@@ -103,17 +137,7 @@ class DatabaseWorker(BaseWorker):
                     'clarification_questions': db_result['clarification_questions'],
                     'artifacts': {}
                 }
-            # Check for Convex schema keys
-            for key in ['schema_ts', 'migration_ts', 'seed_data']:
-                if key not in db_result:
-                    print(f"[DatabaseWorker] '{key}' key missing in LLM response.")
-                    return {
-                        'result': f"Error: '{key}' key missing in LLM response.",
-                        'error': f"'{key}' key missing",
-                        'artifacts': {
-                            'raw_response': json_str
-                        }
-                    }
+            # Check for Convex schema keys - redundant due to schema validation
             return {
                 'result': db_result['schema_ts'],
                 'artifacts': {
@@ -180,4 +204,4 @@ class DatabaseWorker(BaseWorker):
                 'status': 'Failed',
                 'error': str(e),
                 'checks': []
-            } 
+            }
