@@ -31,7 +31,6 @@ class SimpleRAGRetriever:
         metadata = result['metadata']
         
         context_parts = [
-            f"// File: {metadata['file_path']}",
             f"// Project: {metadata['project_name']}",
             f"// Type: {metadata['file_type']} ({metadata['framework']})",
             f"// Description: {metadata['description']}",

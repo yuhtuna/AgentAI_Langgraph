@@ -74,26 +74,23 @@ class DatabaseWorker(BaseWorker):
         response = None
         try:
             db_context = self.get_relevant_code_context(task, context or {})
-            print("\n[DatabaseWorker] Task Goal:", task['goal'])
-            print("[DatabaseWorker] Requirements:", db_context['requirements'])
+            # Removed printing the raw response
             response = llm.invoke(
                 self.schema_prompt.format(
                     task_goal=task['goal'],
                     requirements=db_context['requirements']
                 )
             )
-            print("\n[DatabaseWorker] Raw LLM response:", response.content)
             json_str = self._extract_json_from_llm_response(response.content)
             try:
                 db_result = json.loads(json_str)
-            except Exception as e:
+            except json.JSONDecodeError as e:
                 print("[DatabaseWorker] Error parsing JSON:", e)
                 return {
-                    'result': f"Error parsing JSON: {str(e)}",
+                    'result': "Error parsing LLM response as JSON.",
                     'error': str(e),
                     'artifacts': {
                         'error_details': str(e),
-                        'raw_response': json_str
                     }
                 }
             if 'clarification_questions' in db_result and db_result['clarification_questions']:
@@ -110,9 +107,7 @@ class DatabaseWorker(BaseWorker):
                     return {
                         'result': f"Error: '{key}' key missing in LLM response.",
                         'error': f"'{key}' key missing",
-                        'artifacts': {
-                            'raw_response': json_str
-                        }
+                        'artifacts': {}
                     }
             return {
                 'result': db_result['schema_ts'],
@@ -131,18 +126,25 @@ class DatabaseWorker(BaseWorker):
                 'error': str(e),
                 'artifacts': {
                     'error_details': str(e),
-                    'raw_response': response.content if response else 'No response available'
+                    'raw_response': "LLM response unavailable due to error"
                 }
             }
 
     def validate(self, task: Task, build_result: Dict[str, Any]) -> Dict[str, Any]:
         try:
+            validation_results = []
+            if 'artifacts' not in build_result:
+                return {
+                    'status': 'Failed',
+                    'error': 'No artifacts found in build result.',
+                    'checks': []
+                }
             schema_ts = build_result['artifacts'].get('schema_ts', '')
             migration_ts = build_result['artifacts'].get('migration_ts', '')
             seed_data = build_result['artifacts'].get('seed_data', '')
             indexes = build_result['artifacts'].get('indexes', [])
             notes = build_result['artifacts'].get('validation_notes', '')
-            validation_results = []
+
             if not schema_ts or not schema_ts.strip():
                 validation_results.append({
                     'criterion': 'schema_ts',
@@ -180,4 +182,4 @@ class DatabaseWorker(BaseWorker):
                 'status': 'Failed',
                 'error': str(e),
                 'checks': []
-            } 
+            }
