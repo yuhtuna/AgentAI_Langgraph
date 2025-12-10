@@ -11,7 +11,7 @@ You are a database expert specializing in Convex (https://docs.convex.dev/).
 Current Task: {task_goal}
 
 Project Requirements:
-{requirements}
+{safe_requirements}
 
 Instructions:
 1. Analyze the requirements and clarify any ambiguities.
@@ -48,7 +48,7 @@ class DatabaseWorker(BaseWorker):
         ]
         self.schema_prompt = PromptTemplate(
             template=CONVEX_SCHEMA_PROMPT,
-            input_variables=["task_goal", "requirements"]
+            input_variables=["task_goal", "safe_requirements"]
         )
 
     def get_relevant_code_context(self, task: Task, state_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -74,12 +74,13 @@ class DatabaseWorker(BaseWorker):
         response = None
         try:
             db_context = self.get_relevant_code_context(task, context or {})
+            safe_requirements = db_context['requirements'].replace('\n', ' ').replace('"', "'") # Basic sanitization
             print("\n[DatabaseWorker] Task Goal:", task['goal'])
             print("[DatabaseWorker] Requirements:", db_context['requirements'])
             response = llm.invoke(
                 self.schema_prompt.format(
                     task_goal=task['goal'],
-                    requirements=db_context['requirements']
+                    safe_requirements=safe_requirements
                 )
             )
             print("\n[DatabaseWorker] Raw LLM response:", response.content)
@@ -89,11 +90,11 @@ class DatabaseWorker(BaseWorker):
             except Exception as e:
                 print("[DatabaseWorker] Error parsing JSON:", e)
                 return {
-                    'result': f"Error parsing JSON: {str(e)}",
+                    'result': "Error parsing LLM response.",
                     'error': str(e),
                     'artifacts': {
-                        'error_details': str(e),
-                        'raw_response': json_str
+                        'error_details': "Failed to parse LLM response as JSON.",
+                        'raw_response': "Failed to parse LLM response as JSON."
                     }
                 }
             if 'clarification_questions' in db_result and db_result['clarification_questions']:
@@ -111,7 +112,8 @@ class DatabaseWorker(BaseWorker):
                         'result': f"Error: '{key}' key missing in LLM response.",
                         'error': f"'{key}' key missing",
                         'artifacts': {
-                            'raw_response': json_str
+                            'error_details': f"'{key}' key missing in LLM response.",
+                            'raw_response': "LLM response did not contain all required keys."
                         }
                     }
             return {
@@ -127,11 +129,11 @@ class DatabaseWorker(BaseWorker):
         except Exception as e:
             print("[DatabaseWorker] Error in build phase:", e)
             return {
-                'result': f"Error in build phase: {str(e)}",
+                'result': "An error occurred during database schema generation.",
                 'error': str(e),
                 'artifacts': {
                     'error_details': str(e),
-                    'raw_response': response.content if response else 'No response available'
+                    'raw_response': "An error occurred during database schema generation."
                 }
             }
 
@@ -180,4 +182,4 @@ class DatabaseWorker(BaseWorker):
                 'status': 'Failed',
                 'error': str(e),
                 'checks': []
-            } 
+            }
