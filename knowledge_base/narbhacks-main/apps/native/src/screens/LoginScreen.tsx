@@ -47,26 +47,11 @@ const LoginScreen = ({ navigation }) => {
             if (isPhoneRequired) {
               // If phone is required, we need to handle this differently
               // For now, just try to create the account anyway
-              try {
-                await signUp.update({
-                  phoneNumber: "+1234567890", // Dummy number - you should handle this properly
-                });
-
-                const { createdSessionId: newSessionId } = await signUp.create(
-                  {}
-                );
-
-                if (newSessionId) {
-                  await setActive({ session: newSessionId });
-                  navigation.navigate("NotesDashboardScreen");
-                }
-              } catch (_updateError) {
-                Alert.alert(
-                  "Configuration Issue",
-                  "Your Clerk dashboard requires a phone number for sign-ups. Please update your Clerk dashboard settings to make phone number optional, or implement a phone number collection screen.",
-                  [{ text: "OK" }]
-                );
-              }
+              Alert.alert(
+                "Phone Number Required",
+                "Your account requires a phone number. Please update your Clerk dashboard settings to make phone number optional, or implement a phone number collection screen.",
+                [{ text: "OK" }]
+              );
             } else {
               // Phone is optional, just create the user
               try {
@@ -144,7 +129,7 @@ const LoginScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <View style={styles.signupContainer}>
-          <Text style={{ fontFamily: "Regular" }}>Don’t have an account? </Text>
+          <Text style={{ fontFamily: "Regular" }}>Donâ€™t have an account? </Text>
           <Text>Sign up above.</Text>
         </View>
       </View>

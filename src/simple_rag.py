@@ -22,7 +22,8 @@ class SimpleRAGRetriever:
         for i, result in enumerate(results):
             context = self._format_context(result)
             contexts.append(context)
-            print(f"Result {i+1}: {result['metadata']['file_path']} (distance: {result.get('distance', 'N/A')})")
+            # Removed potentially sensitive file path from print statement
+            print(f"Result {i+1}: (distance: {result.get('distance', 'N/A')})")
         
         return contexts
     
@@ -31,7 +32,8 @@ class SimpleRAGRetriever:
         metadata = result['metadata']
         
         context_parts = [
-            f"// File: {metadata['file_path']}",
+            # Removed potentially sensitive file path from context
+            # f"// File: {metadata['file_path']}",
             f"// Project: {metadata['project_name']}",
             f"// Type: {metadata['file_type']} ({metadata['framework']})",
             f"// Description: {metadata['description']}",

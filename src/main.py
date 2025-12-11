@@ -54,7 +54,7 @@ graph.add_conditional_edges(
 graph.compile()
 
 initial_state = AgentState(
-    user_request="Create a task management web application with user authentication",
+    user_request="",
     clarified_request="",
     is_clarification_needed=False,
     clarification_questions=[],
