@@ -11,7 +11,10 @@ EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 # --- Tavily Web Search Tool ---
 # Initialize the Tavily client directly
-tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+tavily_api_key = os.getenv("TAVILY_API_KEY")
+if not tavily_api_key:
+    raise ValueError("TAVILY_API_KEY environment variable not set.")
+tavily_client = TavilyClient(api_key=tavily_api_key)
 
 class TavilySearchInput(BaseModel):
     query: str = Field(description="The search query to find information on the web")
