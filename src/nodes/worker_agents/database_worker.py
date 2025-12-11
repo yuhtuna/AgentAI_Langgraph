@@ -22,6 +22,7 @@ Instructions:
 6. If requirements are unclear, ask clarifying questions and do not generate code.
 
 Respond with a valid JSON object in this format:
+```json
 {{
   "clarification_questions": ["..."],
   "schema_ts": "// Convex schema as a TypeScript string",
@@ -30,6 +31,7 @@ Respond with a valid JSON object in this format:
   "indexes": ["..."],
   "validation_notes": "// Any validation or constraint notes"
 }}
+```
 """
 
 class DatabaseWorker(BaseWorker):
@@ -61,14 +63,24 @@ class DatabaseWorker(BaseWorker):
         }
 
     def _extract_json_from_llm_response(self, content: str) -> str:
-        content = content.strip()
-        if content.startswith("```json"):
-            content = content[len("```json"):].strip()
-        elif content.startswith("```"):
-            content = content[len("```"):].strip()
-        if content.endswith("```"):
-            content = content[:-3].strip()
-        return content
+        """
+        Extracts JSON from the LLM response, handling potential formatting issues.
+        Uses a more robust approach to extract JSON.
+        """
+        try:
+            # Attempt to find the JSON within the response using a more robust method
+            start = content.find('{')
+            end = content.rfind('}') + 1
+            if start != -1 and end > start:
+                json_str = content[start:end]
+                # Validate the JSON before returning
+                json.loads(json_str) # This will raise an exception if the JSON is invalid
+                return json_str
+            else:
+                return ""  # Or raise an exception, depending on desired behavior
+        except (json.JSONDecodeError, IndexError):
+            return "" # Or raise an exception, depending on desired behavior
+
 
     def build(self, task: Task, context: Dict[str, Any]) -> Dict[str, Any]:
         response = None
@@ -84,6 +96,14 @@ class DatabaseWorker(BaseWorker):
             )
             print("\n[DatabaseWorker] Raw LLM response:", response.content)
             json_str = self._extract_json_from_llm_response(response.content)
+            if not json_str:
+                return {
+                    'result': "Error: Could not extract valid JSON from LLM response.",
+                    'error': "Invalid JSON format",
+                    'artifacts': {
+                        'raw_response': response.content if response else 'No response available'
+                    }
+                }
             try:
                 db_result = json.loads(json_str)
             except Exception as e:
@@ -180,4 +200,4 @@ class DatabaseWorker(BaseWorker):
                 'status': 'Failed',
                 'error': str(e),
                 'checks': []
-            } 
+            }
