@@ -11,7 +11,12 @@ EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 # --- Tavily Web Search Tool ---
 # Initialize the Tavily client directly
-tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+tavily_api_key = os.getenv("TAVILY_API_KEY")
+if not tavily_api_key:
+    print("Warning: TAVILY_API_KEY not found in environment variables. Tavily search will not function.")
+    tavily_client = None
+else:
+    tavily_client = TavilyClient(api_key=tavily_api_key)
 
 class TavilySearchInput(BaseModel):
     query: str = Field(description="The search query to find information on the web")
@@ -19,6 +24,8 @@ class TavilySearchInput(BaseModel):
 @tool("tavily_search", args_schema=TavilySearchInput)
 def tavily_search_func(query: str) -> str:
     """Performs a search using Tavily web search for current information and latest developments."""
+    if tavily_client is None:
+        return "Tavily search is not available because the API key is not configured."
     try:
         # The .search method returns a dictionary; we're interested in the 'results' key.
         response = tavily_client.search(query=query, search_depth="advanced", max_results=5)
