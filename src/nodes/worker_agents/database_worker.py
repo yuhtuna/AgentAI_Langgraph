@@ -11,7 +11,7 @@ You are a database expert specializing in Convex (https://docs.convex.dev/).
 Current Task: {task_goal}
 
 Project Requirements:
-{requirements}
+{safe_requirements}
 
 Instructions:
 1. Analyze the requirements and clarify any ambiguities.
@@ -48,7 +48,7 @@ class DatabaseWorker(BaseWorker):
         ]
         self.schema_prompt = PromptTemplate(
             template=CONVEX_SCHEMA_PROMPT,
-            input_variables=["task_goal", "requirements"]
+            input_variables=["task_goal", "safe_requirements"]
         )
 
     def get_relevant_code_context(self, task: Task, state_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -56,9 +56,29 @@ class DatabaseWorker(BaseWorker):
         requirements = state_context.get('clarified_request', '')
         if not requirements and 'project_requirements' in state_context:
             requirements = state_context['project_requirements']
+        # Sanitize the requirements to mitigate prompt injection
+        safe_requirements = self._sanitize_input(requirements or task['goal'])
         return {
-            'requirements': requirements or task['goal']
+            'safe_requirements': safe_requirements
         }
+
+    def _sanitize_input(self, input_string: str) -> str:
+        """
+        Sanitizes input to prevent prompt injection.  This is a basic example and
+        should be expanded upon based on the specific threats.  Consider using
+        a more robust sanitization library or technique.
+        """
+        # Remove potentially harmful characters or patterns.  This is a starting point.
+        # More sophisticated techniques like escaping special characters,
+        # whitelisting allowed characters, or using a dedicated sanitization library
+        # are recommended for production environments.
+        if not isinstance(input_string, str):
+            return ""
+        input_string = input_string.replace("```", "") # Remove code block delimiters
+        input_string = input_string.replace("<script>", "") # Remove script tags
+        input_string = input_string.replace("</script>", "")
+        input_string = input_string.replace("--", "") # Remove SQL comments
+        return input_string
 
     def _extract_json_from_llm_response(self, content: str) -> str:
         content = content.strip()
@@ -75,11 +95,11 @@ class DatabaseWorker(BaseWorker):
         try:
             db_context = self.get_relevant_code_context(task, context or {})
             print("\n[DatabaseWorker] Task Goal:", task['goal'])
-            print("[DatabaseWorker] Requirements:", db_context['requirements'])
+            print("[DatabaseWorker] Requirements:", db_context['safe_requirements'])
             response = llm.invoke(
                 self.schema_prompt.format(
                     task_goal=task['goal'],
-                    requirements=db_context['requirements']
+                    safe_requirements=db_context['safe_requirements']
                 )
             )
             print("\n[DatabaseWorker] Raw LLM response:", response.content)
@@ -89,11 +109,11 @@ class DatabaseWorker(BaseWorker):
             except Exception as e:
                 print("[DatabaseWorker] Error parsing JSON:", e)
                 return {
-                    'result': f"Error parsing JSON: {str(e)}",
-                    'error': str(e),
+                    'result': "Error parsing JSON from LLM response.",
+                    'error': "JSON parsing error.",
                     'artifacts': {
-                        'error_details': str(e),
-                        'raw_response': json_str
+                        'error_details': "Failed to parse LLM response as JSON.",
+                        'raw_response': "LLM Response: " + json_str
                     }
                 }
             if 'clarification_questions' in db_result and db_result['clarification_questions']:
@@ -109,9 +129,9 @@ class DatabaseWorker(BaseWorker):
                     print(f"[DatabaseWorker] '{key}' key missing in LLM response.")
                     return {
                         'result': f"Error: '{key}' key missing in LLM response.",
-                        'error': f"'{key}' key missing",
+                        'error': f"LLM response missing '{key}' key.",
                         'artifacts': {
-                            'raw_response': json_str
+                            'raw_response': "LLM Response: " + json_str
                         }
                     }
             return {
@@ -127,11 +147,11 @@ class DatabaseWorker(BaseWorker):
         except Exception as e:
             print("[DatabaseWorker] Error in build phase:", e)
             return {
-                'result': f"Error in build phase: {str(e)}",
-                'error': str(e),
+                'result': "An error occurred during schema generation.",
+                'error': "Schema generation error.",
                 'artifacts': {
-                    'error_details': str(e),
-                    'raw_response': response.content if response else 'No response available'
+                    'error_details': f"Error during build phase: {str(e)}",
+                    'raw_response': "LLM Response: " + (response.content if response else 'No response available')
                 }
             }
 
@@ -172,12 +192,12 @@ class DatabaseWorker(BaseWorker):
                 'status': status,
                 'checks': validation_results,
                 'notes': notes,
-                'error': None if status == 'Passed' else 'Some validation checks failed'
+                'error': "Validation failed." if status == 'Failed' else None
             }
         except Exception as e:
             print("[DatabaseWorker] Error in validation phase:", e)
             return {
                 'status': 'Failed',
-                'error': str(e),
+                'error': "An error occurred during validation.",
                 'checks': []
-            } 
+            }
