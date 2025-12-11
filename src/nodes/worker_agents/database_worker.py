@@ -180,4 +180,4 @@ class DatabaseWorker(BaseWorker):
                 'status': 'Failed',
                 'error': str(e),
                 'checks': []
-            } 
+            }
